@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Diagnostic | Cirrus Automations</title>
+    
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- PDF dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <!-- Main Interface Header -->
+        <div class="header no-print">
+            <h1>Cirrus Automations</h1>
+            <p>Advanced Business Diagnostic & Risk Analysis</p>
+        </div>
+
+        <div class="quiz-card no-print" id="quiz-ui">
+            <!-- Progress Tracker -->
+            <div class="progress-container">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+            
+            <div class="content">
+                <!-- STEP 0: ONBOARDING -->
+                <div class="step active" id="step0">
+                    <h2 class="section-title">Initialize Diagnostic</h2>
+                    <p class="section-desc">Analyze technical debt and efficiency leaks in your current business infrastructure.</p>
+                    
+                    <div class="form-group">
+                        <label>Principal Name</label>
+                        <input type="text" id="name" placeholder="Full Name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Operational Email</label>
+                        <input type="email" id="email" placeholder="email@company.com">
+                    </div>
+                    
+                    <button class="btn btn-primary full-width" onclick="startQuiz()">Start Assessment</button>
+                </div>
+
+                <!-- STEP 1: DYNAMIC QUESTIONS -->
+                <div class="step" id="step1">
+                    <p id="q-text" class="question-header">Identifying bottlenecks...</p>
+                    <div id="options" class="options-container"></div>
+                </div>
+
+                <!-- STEP 2: LIVE ANALYSIS DASHBOARD -->
+                <div class="step" id="step2">
+                    <div class="results-top">
+                        <div id="traffic-light" class="status-circle"></div>
+                        <div id="status-badge" class="badge">PENDING</div>
+                        <h2 id="result-title">Calculating Results...</h2>
+                    </div>
+
+                    <div class="impact-metrics">
+                        <div class="metric-card">
+                            <span class="metric-label">Efficiency Leak</span>
+                            <div class="metric-value" id="hours-lost">0 hrs</div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Revenue Risk</span>
+                            <div class="metric-value val-danger" id="revenue-risk">$0</div>
+                        </div>
+                        <div class="metric-card">
+                            <span class="info-icon" onclick="toggleModal()">?</span>
+                            <span class="metric-label">Complexity</span>
+                            <div class="metric-value" id="complexity-score">0</div>
+                        </div>
+                    </div>
+
+                    <div class="analysis-section">
+                        <!-- Owner vs Mechanic Block -->
+                        <div class="paradigm-box">
+                            <div class="paradigm-header">
+                                <span class="paradigm-tag">Paradigm Shift</span>
+                                <h3>The Owner vs. The Mechanic</h3>
+                            </div>
+                            <p id="paradigm-text" class="paradigm-body"></p>
+                        </div>
+
+                        <div class="diag-block">
+                            <h3>Technical Diagnosis</h3>
+                            <p id="diag-text"></p>
+                        </div>
+                        <div id="next-steps-container" class="steps-block"></div>
+                    </div>
+
+                    <div class="action-footer">
+                        <button class="btn btn-primary" id="pdf-btn" onclick="generatePDF()">📥 Export Professional PDF Report</button>
+                        <a href="mailto:jwmaxwell@maxwellriskgroup.com" class="btn btn-outline">Request Engineering Consult</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="pdf-blueprints" style="margin-top: 30px; padding: 20px; background: #fafafa; border-radius: 8px;">
+    <h3 style="font-size: 28px; margin-bottom: 16px;">⚙️ Make.com & Airtable Blueprints</h3>
+    <!-- JSON examples will be injected here -->
+</div>
+
+        <div class="footer no-print">
+            © 2025 Cirrus Automations
+        </div>
+    </div>
+
+    <!-- MODAL: COMPLEXITY CALCULATION -->
+    <div id="logic-modal" class="modal-backdrop">
+        <div class="modal-body">
+            <h3>Complexity Analysis Logic</h3>
+            <ul class="logic-data">
+                <li>Standard Logic Depth: <span id="logic-std">0%</span></li>
+                <li>AI Intelligence Req: <span id="logic-ai">0%</span></li>
+                <li>Integration Risk: <span id="logic-risk">0%</span></li>
+            </ul>
+            <button class="btn btn-outline" onclick="toggleModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- PDF REPORT TEMPLATE -->
+    <div id="pdf-template">
+        <div class="pdf-page">
+            <div class="pdf-branding">
+                <h1>CIRRUS AUTOMATIONS</h1>
+                <h3>BUSINESS DIAGNOSTIC & RISK ANALYSIS</h3>
+            </div>
+
+            <div class="pdf-client-meta">
+                <p><strong>CLIENT:</strong> <span id="pdf-name"></span></p>
+                <p><strong>DATE:</strong> <span id="pdf-date"></span></p>
+            </div>
+
+            <div class="pdf-stat-row">
+                <div class="pdf-stat-box">
+                    <div class="pdf-stat-label">Efficiency Leak</div>
+                    <div class="pdf-stat-val" id="pdf-hours">0 hrs/mo</div>
+                </div>
+                <div class="pdf-stat-box">
+                    <div class="pdf-stat-label">Annual Revenue Risk</div>
+                    <div class="pdf-stat-val pdf-text-danger" id="pdf-risk">$0</div>
+                </div>
+                <div class="pdf-stat-box">
+                    <div class="pdf-stat-label">Complexity Score</div>
+                    <div class="pdf-stat-val" id="pdf-complexity">0</div>
+                </div>
+            </div>
+
+            <div class="pdf-content-section">
+                <h4 class="pdf-section-title">THE OWNER VS. THE MECHANIC</h4>
+                <div class="pdf-paradigm-box" id="pdf-paradigm"></div>
+            </div>
+
+            <div class="pdf-content-section">
+                <h4 class="pdf-section-title">EXECUTIVE DIAGNOSIS</h4>
+                <div class="pdf-diagnosis-box" id="pdf-diagnosis"></div>
+            </div>
+
+            <div class="pdf-content-section">
+                <h4 class="pdf-section-title">IMPLEMENTATION ROADMAP</h4>
+                <div id="pdf-actions" class="pdf-action-list"></div>
+            </div>
+
+            <div class="pdf-content-section">
+                <h4 class="pdf-section-title">BENCHMARKING & AUDIT LOG</h4>
+                <div id="pdf-audit-log" class="pdf-audit-table"></div>
+            </div>
+
+            <div class="pdf-footer-note">
+                jwmaxwell@maxwellriskgroup.com | Cirrus Automations
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
