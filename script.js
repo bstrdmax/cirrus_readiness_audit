@@ -1,8 +1,9 @@
 /**
  * CIRRUS AUTOMATIONS - STRATEGIC DIAGNOSTIC ENGINE
- * Version: 8.5 (Zero-Truncation / High-Fidelity Sync)
+ * Version: 9.0 (Full Multipage High-Fidelity Render + CRM Sync)
  */
 
+// 1. DATA STRUCTURE: 33 STRATEGIC QUESTIONS
 const questions = [
     {
         id: "leads",
@@ -199,7 +200,7 @@ const questions = [
         text: "How do you manage inventory or digital product access?",
         options: [
             { text: "Manual tracking", score: 1, rec: "Use Airtable to track digital provisioning." },
-            { text: "Basic alerts when stock is low", score: 3, rec: "Automate replenishment orders via API." },
+            { text: "Basic alerts when stock is low", score: 3, rec: "Add keyword-based routing for critical issues." },
             { text: "Real‑time automated replenishment", score: 5 }
         ],
         category: "Operations"
@@ -336,14 +337,14 @@ const questions = [
     }
 ];
 
+// 2. STATE MANAGEMENT
 let currentStep = 0;
 let totalScore = 0;
 let auditLog = [];
 let userSelections = {};
 let userInfo = { name: "", email: "", business: "" };
 
-/**
- * INIT & NAVIGATION
+/** * INIT & NAVIGATION
  */
 function startQuiz() {
     userInfo.name = document.getElementById('name').value.trim();
@@ -383,38 +384,40 @@ function selectOption(id, qText, opt, cat) {
     totalScore += opt.score;
     userSelections[id] = opt.score;
     if (opt.val !== undefined) userSelections[id + "_val"] = opt.val;
-    auditLog.push({ q: qText, a: opt.text, category: cat, score: opt.score, rec: opt.rec });
+    auditLog.push({ q: qText, a: opt.text, category: cat, score: opt.score, rec: opt.rec || "Maintain high status." });
     currentStep++;
     renderQuestion();
 }
 
-/**
- * ANALYSIS & CRM DISPATCH
+/** * ANALYSIS & DASHBOARD 
  */
 async function processResults() {
     document.getElementById('step1').classList.remove('active');
     document.getElementById('step2').classList.add('active');
     document.getElementById('progress').style.width = '100%';
 
-    const maxScore = questions.length * 5;
-    const maturityPct = Math.round((totalScore / maxScore) * 100);
-
+    const maturityPct = Math.round((totalScore / (questions.length * 5)) * 100);
     let riskPoints = 0;
     let matrixData = [];
 
-    // IF-THEN Analysis
-    if ((userSelections['admin_val'] || 0) >= 15) { riskPoints += 40; matrixData.push({ if: "Admin load 15h+", then: "Burnout risk.", root: "Manual tasks.", control: "Automation." }); }
-    if (userSelections['backup'] <= 1) { riskPoints += 40; matrixData.push({ if: "No backup", then: "Data loss.", root: "Manual reliance.", control: "API Backup." }); }
+    // IF-THEN Analysis for Risks
+    if ((userSelections['admin_val'] || 0) >= 15) { riskPoints += 40; matrixData.push({ if: "Weekly admin load 15h+", then: "Burnout risk.", root: "Manual handling.", control: "Automation." }); }
+    if (userSelections['backup'] <= 1) { riskPoints += 40; matrixData.push({ if: "No automated backup", then: "Data loss.", root: "Manual reliance.", control: "API Backup." }); }
+    if (userSelections['leads'] <= 1) { riskPoints += 20; matrixData.push({ if: "Manual lead processing", then: "Lead leakage.", root: "High latency.", control: "Webhook triage." }); }
 
     let riskLevel = maturityPct < 45 ? "Critical" : (maturityPct < 75 ? "Medium" : "Low");
     const annualRisk = Math.round((userSelections['ticket_val'] || 0) * (userSelections['volume_val'] || 0) * 12 * (riskPoints / 200));
 
-    // Dashboard UI
+    // UI Updates
     document.getElementById('hours-lost').innerText = `${(userSelections['admin_val'] || 0) * 4} hrs`;
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = riskLevel;
+    document.getElementById('diag-text').innerText = `Your infrastructure maturity is ${maturityPct}%. Structural dependency on manual processing presents a ${riskLevel} risk. Direct exposure: $${annualRisk.toLocaleString()}.`;
 
-    // PREPARE CRM DATA
+    // 1. Build Multi-Page PDF Template
+    setupPdfTemplate(maturityPct, riskLevel, annualRisk, matrixData);
+
+    // 2. Automated Webhook Sync
     const formData = {
         name: userInfo.name,
         email: userInfo.email,
@@ -425,93 +428,142 @@ async function processResults() {
         all33Questions: auditLog
     };
 
-    // GENERATE TEMPLATE FIRST
-    setupPdfTemplate(maturityPct, riskLevel, matrixData);
-
-    // AUTO-SYNC TO CRM (Silent PDF Capture)
     setTimeout(async () => {
         try {
-            const pdfBlob = await generatePDF(true); // true = silent capture for webhook
-            if (pdfBlob) {
-                await sendToWebhook(formData, pdfBlob);
-            }
-        } catch (e) { console.error("Webhook failure:", e); }
+            const pdfBlob = await generatePDF(true); 
+            if (pdfBlob) { await sendToWebhook(formData, pdfBlob); }
+        } catch (e) { console.error("Webhook failure", e); }
     }, 1500);
 }
 
-/**
- * PDF TEMPLATE BUILDER
+/** * MULTI-PAGE PDF BUILDER
  */
-function setupPdfTemplate(maturity, risk, matrix) {
+function setupPdfTemplate(maturity, risk, annualRisk, matrix) {
     const template = document.getElementById('pdf-template');
-    template.innerHTML = `
-        <div class="pdf-page-chunk" style="width:800px; padding:60px; background:white; font-family:sans-serif;">
-            <div style="border-bottom: 3px solid #000; padding-bottom:20px; margin-bottom:40px;">
-                <h1>CIRRUS AUTOMATION DIAGNOSTIC</h1>
+    template.innerHTML = ''; 
+
+    // Page 1: Executive Summary & Maturity
+    const p1 = createPageDiv();
+    p1.innerHTML = `
+        <div style="border-bottom: 3px solid #0f172a; padding-bottom:20px; margin-bottom:40px;">
+            <h1 style="font-size:32px; margin:0;">CIRRUS AUTOMATION DIAGNOSTIC</h1>
+            <p style="color:#2563eb; font-weight:800; font-size:14px; margin-top:5px;">STRATEGIC INFRASTRUCTURE REPORT</p>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:40px; background:#f8fafc; padding:20px; border-radius:12px;">
+            <div><small style="font-size:8px; color:#94a3b8; text-transform:uppercase;">Client</small><br><strong>${userInfo.name}</strong></div>
+            <div><small style="font-size:8px; color:#94a3b8; text-transform:uppercase;">Business</small><br><strong>${userInfo.business}</strong></div>
+            <div style="text-align:right;"><small style="font-size:8px; color:#94a3b8; text-transform:uppercase;">Date</small><br><strong>${new Date().toLocaleDateString()}</strong></div>
+        </div>
+        <div style="background:${risk === "Critical" ? "#ef4444" : "#2563eb"}; color:white; padding:30px; border-radius:12px; text-align:center; margin-bottom:40px;">
+            <h2 style="margin:0; font-size:26px;">Infrastructure Maturity: ${maturity}%</h2>
+            <p style="margin:10px 0 0; font-size:18px;">Risk Profile: ${risk}</p>
+        </div>
+        <h3>Operational Analytics</h3>
+        <div style="display:flex; gap:15px; margin-bottom:40px;">
+            <div style="flex:1; border:1px solid #e2e8f0; padding:20px; border-radius:10px; text-align:center;">
+                <small style="font-size:9px; color:#64748b;">Maturity</small><br><span style="font-size:20px; font-weight:800;">${maturity}%</span>
             </div>
-            <div style="margin-bottom:40px;">
-                <p><strong>Client:</strong> ${userInfo.name}</p>
-                <p><strong>Business:</strong> ${userInfo.business}</p>
-                <p><strong>Maturity:</strong> ${maturity}%</p>
-                <p><strong>Risk Profile:</strong> ${risk}</p>
-            </div>
-            <div style="background:#f0f0f0; padding:20px; border-radius:10px;">
-                <h3>Executive Summary</h3>
-                <p>Infrastructure is rated at ${maturity}% maturity. Direct risk exposure is identified.</p>
+            <div style="flex:1; border:1px solid #e2e8f0; padding:20px; border-radius:10px; text-align:center;">
+                <small style="font-size:9px; color:#64748b;">Risk Exposure</small><br><span style="font-size:20px; font-weight:800; color:#ef4444;">$${annualRisk.toLocaleString()}</span>
             </div>
         </div>
+        <div style="padding:20px; background:#f1f5f9; border-radius:12px;">
+            <p style="margin:0; font-size:14px; line-height:1.6;">Full infrastructure audit reveals ${maturity}% readiness. Risk level categorized as ${risk} based on baseline structural measurements.</p>
+        </div>
     `;
+    template.appendChild(p1);
+
+    // Page 2: Risk Matrix
+    if(matrix.length > 0) {
+        const p2 = createPageDiv();
+        p2.innerHTML = `
+            <h3 style="border-left:5px solid #2563eb; padding-left:12px; font-size:20px; margin-bottom:25px;">Strategic Risk Matrix</h3>
+            ${matrix.map(m => `
+                <div style="margin-bottom:20px; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                    <div style="background:#f8fafc; padding:12px 20px; border-bottom:1px solid #e2e8f0;"><strong>IF:</strong> ${m.if}</div>
+                    <div style="padding:15px 20px; font-size:12px;">
+                        <p><strong>THEN:</strong> ${m.then}</p>
+                        <p><strong>CONTROL:</strong> ${m.control}</p>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+        template.appendChild(p2);
+    }
+
+    // Pages 3+: Detailed Assessment Questions (Chunked into 12 per page)
+    const auditChunks = chunkArray(auditLog, 12);
+    auditChunks.forEach((chunk, i) => {
+        const p = createPageDiv();
+        p.innerHTML = `
+            <h3 style="border-left:5px solid #2563eb; padding-left:12px; font-size:20px; margin-bottom:10px;">Diagnostic Audit Log (Pt ${i+1})</h3>
+            <p style="font-size:11px; color:#64748b; margin-bottom:25px;">Question ${i*12+1} to ${Math.min((i+1)*12, auditLog.length)} of 33</p>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                ${chunk.map((item, idx) => `
+                    <div style="border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
+                        <div style="font-weight:800; font-size:11px; color:#334155;">#${i*12+idx+1}. ${item.q}</div>
+                        <div style="font-size:10px; color:#64748b; margin-top:4px;">
+                            Response: ${item.a} <span style="margin-left:10px; background:#f1f5f9; padding:2px 6px; border-radius:4px;">Score: ${item.score}/5</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        template.appendChild(p);
+    });
 }
 
-/**
- * HIGH-FIDELITY PDF GENERATOR (Modified for Webhook)
+/** * HIGH-FIDELITY PDF RENDERER (Multi-Page Capture)
  */
 async function generatePDF(isAutoSend = false) {
     const btn = document.getElementById('pdf-btn');
-    const element = document.getElementById('pdf-template');
+    const template = document.getElementById('pdf-template');
+    const pages = template.querySelectorAll('.pdf-page-chunk');
     
-    if (!isAutoSend) {
-        btn.disabled = true;
-        btn.innerText = 'Preparing Report...';
-    }
+    if (!pages.length) return null;
+    if (!isAutoSend) { btn.disabled = true; btn.innerText = 'Compiling Report...'; }
 
-    const originalStyle = element.getAttribute('style') || '';
-    element.style.cssText = `display: block !important; visibility: visible !important; position: absolute !important; left: -9999px !important; width: 800px !important; background: white !important;`;
+    // Use absolute positioning for high-fidelity capture off-screen
+    const originalStyle = template.getAttribute('style') || '';
+    template.style.cssText = `display:block !important; visibility:visible !important; position:absolute !important; left:-9999px !important; width:800px !important; background:white !important;`;
+
+    await document.fonts.ready;
+    await new Promise(resolve => requestAnimationFrame(resolve));
 
     try {
-        const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'in', 'letter');
+        const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
         
-        const pageWidth = 8.5, pageHeight = 11, margin = 0.4;
-        const imgData = canvas.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgData, 'JPEG', margin, margin, 7.7, (canvas.height * 7.7) / canvas.width);
+        for (let i = 0; i < pages.length; i++) {
+            const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            const pageData = canvas.toDataURL('image/jpeg', 0.98);
+            if (i > 0) pdf.addPage();
+            pdf.addImage(pageData, 'JPEG', 0.4, 0.4, 7.7, (pages[i].offsetHeight / 800) * 7.7);
+        }
 
         if (!isAutoSend) {
-            pdf.save(`Diagnostic_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
+            pdf.save(`Diagnostic_Report_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
             btn.innerText = '📥 Export Professional PDF Report';
             return null;
         } else {
             return pdf.output('blob');
         }
     } catch (err) {
-        console.error('PDF Error:', err);
+        console.error('PDF Generation Error:', err);
         return null;
     } finally {
-        element.setAttribute('style', originalStyle);
+        template.setAttribute('style', originalStyle);
         if (!isAutoSend) btn.disabled = false;
     }
 }
 
-/**
- * WEBHOOK SYNC
+/** * MAKE.COM WEBHOOK SYNC
  */
 async function sendToWebhook(formData, pdfBlob) {
     const reader = new FileReader();
     reader.readAsDataURL(pdfBlob);
     reader.onloadend = async () => {
         const base64PDF = reader.result.split(',')[1];
-        
         const payload = {
             fullName: formData.name,
             email: formData.email,
@@ -525,14 +577,28 @@ async function sendToWebhook(formData, pdfBlob) {
         };
 
         const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
-        
         await fetch(WEBHOOK_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        console.log("CRM: Data transmitted successfully.");
+        console.log("CRM Synced Successfully.");
     };
+}
+
+// HELPERS
+function createPageDiv() {
+    const div = document.createElement('div');
+    div.className = 'pdf-page-chunk';
+    div.style.width = "800px"; div.style.height = "1050px"; // Letter aspect ratio
+    div.style.padding = "60px"; div.style.background = "white"; div.style.boxSizing = "border-box";
+    return div;
+}
+
+function chunkArray(arr, size) {
+    const res = [];
+    for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+    return res;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
