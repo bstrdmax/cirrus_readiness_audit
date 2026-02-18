@@ -1,42 +1,174 @@
 /**
  * CIRRUS AUTOMATIONS - STRATEGIC DIAGNOSTIC ENGINE
- * Version: 11.1 (Stable - Enhanced PDF & Webhook Reliability)
+ * Version: 11.5 (Final - Stack-Aligned Recommendations)
  */
 
 const questions = [
-    { id: "leads", text: "How do you handle new inquiries from your website or social media?", options: [{ text: "I manually reply to every message myself", score: 1, rec: "Implement an automated Lead Triage system." }, { text: "I have a basic auto-reply, then I take over", score: 3, rec: "Upgrade auto-replies to AI responses." }, { text: "They flow into a CRM with automated follow-ups", score: 5 }], category: "Marketing" },
-    { id: "volume", text: "Avg monthly lead/customer volume?", options: [{ text: "Over 50", score: 5, val: 50 }, { text: "10 to 50", score: 3, val: 25 }, { text: "Under 10", score: 1, val: 5 }], category: "Marketing" },
-    { id: "email_marketing", text: "How are your email marketing campaigns managed?", options: [{ text: "I manually write and send each email", score: 1, rec: "Sync Airtable to Make Email modules." }, { text: "I use templates but send manually", score: 3, rec: "Add behavior triggers." }, { text: "Fully automated, segmented flows", score: 5 }], category: "Marketing" },
-    { id: "social_media", text: "How do you publish content on social media?", options: [{ text: "Post manually on each platform", score: 1, rec: "Use Make’s RSS automation." }, { text: "Use a scheduler like Buffer or Later", score: 3, rec: "Connect calendar to API." }, { text: "AI‑optimized scheduling", score: 5 }], category: "Marketing" },
-    { id: "ad_optimization", text: "How are your paid ad campaigns optimized?", options: [{ text: "I check and adjust bids manually", score: 1, rec: "Sync performance to Airtable." }, { text: "Rules‑based adjustments", score: 3, rec: "Set up automated alerts." }, { text: "AI‑powered bidding", score: 5 }], category: "Marketing" },
-    { id: "lead_scoring", text: "How do you identify which leads are ready to buy?", options: [{ text: "Gut feel / generic follow-up", score: 1, rec: "Implement scoring on link clicks." }, { text: "Manual lead scoring in spreadsheet", score: 3, rec: "Automate scoring via page visits." }, { text: "Automated scoring based on engagement", score: 5 }], category: "Marketing" },
-    { id: "proposals", text: "How are quotes or contracts created?", options: [{ text: "Built from scratch in Word each time", score: 1, rec: "Use PandaDoc + Make." }, { text: "Use templates with manual copy/paste", score: 3, rec: "Map CRM fields to templates." }, { text: "Auto‑generated from CRM", score: 5 }], category: "Sales" },
-    { id: "follow_up", text: "What happens after a prospect doesn't reply?", options: [{ text: "I eventually follow up if I remember", score: 1, rec: "Create 3-step automated sequence." }, { text: "I have a sequence I manually trigger", score: 3, rec: "Trigger sequences from form submission." }, { text: "Multi‑channel automated nurture", score: 5 }], category: "Sales" },
-    { id: "contract_renewal", text: "How do you manage recurring renewals?", options: [{ text: "Manually track and send emails", score: 1, rec: "Set 30-day expiry alerts." }, { text: "Calendar reminders + manual email", score: 3, rec: "Automate renewal quotes." }, { text: "Auto‑generated quotes + reminders", score: 5 }], category: "Sales" },
-    { id: "reviews", text: "Process for customer reviews?", options: [{ text: "No process / see them occasionally", score: 1, rec: "Sync reviews to Slack." }, { text: "Manual copy/paste template", score: 3, rec: "Use AI for draft responses." }, { text: "AI-enhanced sentiment system", score: 5 }], category: "Customer Service" },
-    { id: "onboarding", text: "What happens when a client pays?", options: [{ text: "I manually send email and set folders", score: 1, rec: "Automate folder creation." }, { text: "Semi-automated link / manual check", score: 3, rec: "Trigger automated task lists." }, { text: "Portals and tasks triggered instantly", score: 5 }], category: "Customer Service" },
-    { id: "support_tickets", text: "How are support requests tracked?", options: [{ text: "Email inbox only", score: 1, rec: "Use Airtable ticketing." }, { text: "Shared inbox or basic tool", score: 3, rec: "Add keyword routing." }, { text: "AI‑powered chatbot + helpdesk", score: 5 }], category: "Customer Service" },
-    { id: "feedback", text: "How do you collect feedback?", options: [{ text: "No formal collection", score: 1, rec: "Automate NPS surveys." }, { text: "Send occasional surveys manually", score: 3, rec: "Sync survey results to CRM." }, { text: "Automated surveys with sentiment analysis", score: 5 }], category: "Customer Service" },
-    { id: "knowledge_base", text: "Self‑service support availability?", options: [{ text: "No self‑service", score: 1, rec: "Create FAQ via Softr." }, { text: "Static FAQ page", score: 3, rec: "Build AI-searchable hub." }, { text: "AI‑searchable + auto-suggestions", score: 5 }], category: "Customer Service" },
-    { id: "integration", text: "Are tools integrated (Stripe, Skool, CRM)?", options: [{ text: "No, isolated islands", score: 1, rec: "Bridge apps via Make.com." }, { text: "Basic Zaps or links", score: 3, rec: "Centralize data flow." }, { text: "Deep Make.com ecosystem", score: 5 }], category: "Operations" },
-    { id: "admin", text: "Weekly hours on repetitive admin?", options: [{ text: "15+ hours", score: 1, val: 15, rec: "Automation required immediately." }, { text: "5 to 10 hours", score: 3, val: 7, rec: "Automate daily data syncing." }, { text: "Less than 2 hours", score: 5, val: 1 }], category: "Operations" },
-    { id: "project_management", text: "Internal task tracking method?", options: [{ text: "Verbal / chat – no central tool", score: 1, rec: "Use Airtable Project Hub." }, { text: "Task tool manually updated", score: 3, rec: "Sync milestones to Slack." }, { text: "Automated task creation", score: 5 }], category: "Operations" },
-    { id: "document_management", text: "Document organization method?", options: [{ text: "Local folders / scattered", score: 1, rec: "Move to cloud structure." }, { text: "Cloud drive – no naming convention", score: 3, rec: "Automate file filing." }, { text: "Auto‑filed and indexed via workflow", score: 5 }], category: "Operations" },
-    { id: "scheduling", text: "Meeting scheduling process?", options: [{ text: "Back‑and‑forth emails", score: 1, rec: "Implement Calendly." }, { text: "Use a booking link", score: 3, rec: "Automate pre-meeting prep." }, { text: "AI‑assisted scheduling", score: 5 }], category: "Operations" },
-    { id: "inventory", text: "Inventory or product access management?", options: [{ text: "Manual tracking", score: 1, rec: "Track via Airtable." }, { text: "Basic alerts", score: 3, rec: "Automate replenishment via API." }, { text: "Real‑time auto-replenishment", score: 5 }], category: "Operations" },
-    { id: "invoices", text: "Lifecycle of an unpaid invoice?", options: [{ text: "Manual bank check", score: 1, rec: "Implement collections engine." }, { text: "Email when I remember", score: 3, rec: "Set automated reminders." }, { text: "Auto-escalation collections engine", score: 5 }], category: "Finance" },
-    { id: "ticket", text: "Avg transaction or invoice value?", options: [{ text: "Over $2,000", score: 5, val: 2000 }, { text: "$500 - $2,000", score: 3, val: 1000 }, { text: "Under $500", score: 1, val: 250 }], category: "Finance" },
-    { id: "expenses", text: "Expense tracking method?", options: [{ text: "Paper receipts", score: 1, rec: "Use Hubdoc / Dext." }, { text: "Spreadsheet + manual approval", score: 3, rec: "Automate Slack approvals." }, { text: "Automated scanning + workflows", score: 5 }], category: "Finance" },
-    { id: "payroll", text: "Payroll processing method?", options: [{ text: "Manual calculations", score: 1, rec: "Switch to API-supported payroll." }, { text: "Software + manual time tracking", score: 3, rec: "Sync time software to payroll." }, { text: "Fully integrated time and payroll", score: 5 }], category: "Finance" },
-    { id: "reporting", text: "Report generation method?", options: [{ text: "Manual data pull", score: 1, rec: "Build Airtable dashboard." }, { text: "Scheduled Excel exports", score: 3, rec: "Automate aggregation." }, { text: "Live dashboards + auto-refresh", score: 5 }], category: "Finance" },
-    { id: "recruiting", text: "Job applicant screening process?", options: [{ text: "Manual resume review", score: 1, rec: "Use AI pre-screening." }, { text: "Keyword filtering", score: 3, rec: "Automate video interviews." }, { text: "AI‑powered candidate matching", score: 5 }], category: "People" },
-    { id: "onboarding_employee", text: "New employee onboarding process?", options: [{ text: "Manual account setup", score: 1, rec: "Automate account provisioning." }, { text: "Checklist with manual chasing", score: 3, rec: "Build onboarding portal." }, { text: "Automated provisioning + training", score: 5 }], category: "People" },
-    { id: "time_off", text: "Time‑off request handling?", options: [{ text: "Manual chat / email", score: 1, rec: "Use form-based requests." }, { text: "Form + manual calendar update", score: 3, rec: "Sync leave to calendar." }, { text: "Auto request, approval, and sync", score: 5 }], category: "People" },
-    { id: "business_intelligence", text: "Measurement of business metrics?", options: [{ text: "No consistent tracking", score: 1, rec: "Define core KPIs." }, { text: "Monthly manual reports", score: 3, rec: "Build automated KPI dashboard." }, { text: "Real‑time + AI anomaly detection", score: 5 }], category: "Data & AI" },
-    { id: "forecasting", text: "Sales or cash flow forecasting?", options: [{ text: "Gut feel", score: 1, rec: "Implement linear forecasting." }, { text: "Historical Excel averages", score: 3, rec: "Automate projections." }, { text: "AI‑assisted predictive forecasting", score: 5 }], category: "Data & AI" },
-    { id: "data_integration", text: "Customer data unification status?", options: [{ text: "Isolated silos", score: 1, rec: "Create Single Source of Truth." }, { text: "Manual exports/imports", score: 3, rec: "Sync via Make.com." }, { text: "Unified view via middleware", score: 5 }], category: "Data & AI" },
-    { id: "backup", text: "Critical data backup method?", options: [{ text: "No formal backup", score: 1, rec: "Automate cloud-to-cloud backup." }, { text: "Manual periodic backups", score: 3, rec: "Schedule versioned backups." }, { text: "Automated, versioned, off‑site", score: 5 }], category: "Compliance" },
-    { id: "access_control", text: "User permission management?", options: [{ text: "Shared logins", score: 1, rec: "Implement SSO." }, { text: "Separate logins / manual exit", score: 3, rec: "Automate offboarding." }, { text: "Automated role‑based provisioning", score: 5 }], category: "Compliance" }
+    { id: "leads", text: "How do you handle new inquiries from your website or social media?", options: [
+        { text: "I manually reply to every message myself", score: 1, rec: "Implement an automated Lead Triage system using Make.com to capture leads into Airtable and notify sales." },
+        { text: "I have a basic auto-reply, then I take over", score: 3, rec: "Upgrade auto-replies to AI responses using Google Gemini for smart lead qualification, integrated via Make.com." },
+        { text: "They flow into a CRM with automated follow-ups", score: 5 }
+    ], category: "Marketing" },
+    { id: "volume", text: "Avg monthly lead/customer volume?", options: [
+        { text: "Over 50", score: 5, val: 50 },
+        { text: "10 to 50", score: 3, val: 25 },
+        { text: "Under 10", score: 1, val: 5 }
+    ], category: "Marketing" },
+    { id: "email_marketing", text: "How are your email marketing campaigns managed?", options: [
+        { text: "I manually write and send each email", score: 1, rec: "Sync Airtable to Make.com to automate email campaigns with personalized content." },
+        { text: "I use templates but send manually", score: 3, rec: "Add behavior triggers using Make.com to send emails based on user actions, with Gemini generating subject lines." },
+        { text: "Fully automated, segmented flows", score: 5 }
+    ], category: "Marketing" },
+    { id: "social_media", text: "How do you publish content on social media?", options: [
+        { text: "Post manually on each platform", score: 1, rec: "Use Make.com's RSS automation to syndicate content to social platforms from Airtable." },
+        { text: "Use a scheduler like Buffer or Later", score: 3, rec: "Connect your content calendar to Airtable and use Make.com to schedule posts via API." },
+        { text: "AI‑optimized scheduling", score: 5 }
+    ], category: "Marketing" },
+    { id: "ad_optimization", text: "How are your paid ad campaigns optimized?", options: [
+        { text: "I check and adjust bids manually", score: 1, rec: "Sync ad performance data to Airtable using Make.com for real-time dashboards." },
+        { text: "Rules‑based adjustments", score: 3, rec: "Set up automated alerts via Make.com when ad spend exceeds thresholds, with Gemini suggesting bid adjustments." },
+        { text: "AI‑powered bidding", score: 5 }
+    ], category: "Marketing" },
+    { id: "lead_scoring", text: "How do you identify which leads are ready to buy?", options: [
+        { text: "Gut feel / generic follow-up", score: 1, rec: "Implement scoring on link clicks by tracking in Airtable via Make.com webhooks." },
+        { text: "Manual lead scoring in spreadsheet", score: 3, rec: "Automate scoring via page visits using Airtable and Make.com to update lead scores." },
+        { text: "Automated scoring based on engagement", score: 5 }
+    ], category: "Marketing" },
+    { id: "proposals", text: "How are quotes or contracts created?", options: [
+        { text: "Built from scratch in Word each time", score: 1, rec: "Use Google Docs templates with Make.com to generate proposals from Airtable." },
+        { text: "Use templates with manual copy/paste", score: 3, rec: "Map Airtable fields to Google Docs templates via Make.com for dynamic proposal creation." },
+        { text: "Auto‑generated from CRM", score: 5 }
+    ], category: "Sales" },
+    { id: "follow_up", text: "What happens after a prospect doesn't reply?", options: [
+        { text: "I eventually follow up if I remember", score: 1, rec: "Create a 3-step automated email sequence in Make.com, triggered from Airtable." },
+        { text: "I have a sequence I manually trigger", score: 3, rec: "Trigger sequences from form submission using Make.com, with Gemini personalizing follow-up messages." },
+        { text: "Multi‑channel automated nurture", score: 5 }
+    ], category: "Sales" },
+    { id: "contract_renewal", text: "How do you manage recurring renewals?", options: [
+        { text: "Manually track and send emails", score: 1, rec: "Set 30-day expiry alerts using Airtable date fields and Make.com notifications." },
+        { text: "Calendar reminders + manual email", score: 3, rec: "Automate renewal quotes by syncing Airtable to billing via Make.com." },
+        { text: "Auto‑generated quotes + reminders", score: 5 }
+    ], category: "Sales" },
+    { id: "reviews", text: "Process for customer reviews?", options: [
+        { text: "No process / see them occasionally", score: 1, rec: "Sync reviews to Slack using Make.com, with Gemini sentiment analysis stored in Airtable." },
+        { text: "Manual copy/paste template", score: 3, rec: "Use Gemini to draft responses to reviews, logged in Airtable." },
+        { text: "AI-enhanced sentiment system", score: 5 }
+    ], category: "Customer Service" },
+    { id: "onboarding", text: "What happens when a client pays?", options: [
+        { text: "I manually send email and set folders", score: 1, rec: "Automate folder creation in Google Drive via Make.com when a new client is added to Airtable." },
+        { text: "Semi-automated link / manual check", score: 3, rec: "Trigger automated task lists in Airtable and send welcome emails via Make.com." },
+        { text: "Portals and tasks triggered instantly", score: 5 }
+    ], category: "Customer Service" },
+    { id: "support_tickets", text: "How are support requests tracked?", options: [
+        { text: "Email inbox only", score: 1, rec: "Use Airtable as a ticketing system with Make.com to route emails to records." },
+        { text: "Shared inbox or basic tool", score: 3, rec: "Add keyword routing using Make.com filters and Gemini for intent classification." },
+        { text: "AI‑powered chatbot + helpdesk", score: 5 }
+    ], category: "Customer Service" },
+    { id: "feedback", text: "How do you collect feedback?", options: [
+        { text: "No formal collection", score: 1, rec: "Automate NPS surveys via Make.com, storing responses in Airtable." },
+        { text: "Send occasional surveys manually", score: 3, rec: "Sync survey results to CRM using Make.com, with Gemini analyzing sentiment." },
+        { text: "Automated surveys with sentiment analysis", score: 5 }
+    ], category: "Customer Service" },
+    { id: "knowledge_base", text: "Self‑service support availability?", options: [
+        { text: "No self‑service", score: 1, rec: "Create FAQ using Airtable and a public interface like Softr or Glide." },
+        { text: "Static FAQ page", score: 3, rec: "Build an AI-searchable hub using Airtable and Gemini for Q&A, integrated via Make.com." },
+        { text: "AI‑searchable + auto-suggestions", score: 5 }
+    ], category: "Customer Service" },
+    { id: "integration", text: "Are tools integrated (Stripe, Skool, CRM)?", options: [
+        { text: "No, isolated islands", score: 1, rec: "Bridge apps via Make.com to connect Airtable, Stripe, Skool, etc." },
+        { text: "Basic Zaps or links", score: 3, rec: "Centralize data flow with Airtable as the source of truth and Make.com for automation." },
+        { text: "Deep Make.com ecosystem", score: 5 }
+    ], category: "Operations" },
+    { id: "admin", text: "Weekly hours on repetitive admin?", options: [
+        { text: "15+ hours", score: 1, val: 15, rec: "Automation required immediately: Use Make.com to sync data between Airtable and other apps." },
+        { text: "5 to 10 hours", score: 3, val: 7, rec: "Automate daily data syncing with Make.com to reduce manual work." },
+        { text: "Less than 2 hours", score: 5, val: 1 }
+    ], category: "Operations" },
+    { id: "project_management", text: "Internal task tracking method?", options: [
+        { text: "Verbal / chat – no central tool", score: 1, rec: "Use Airtable as a project hub with Make.com automating task creation from forms." },
+        { text: "Task tool manually updated", score: 3, rec: "Sync milestones to Slack via Make.com based on Airtable updates." },
+        { text: "Automated task creation", score: 5 }
+    ], category: "Operations" },
+    { id: "document_management", text: "Document organization method?", options: [
+        { text: "Local folders / scattered", score: 1, rec: "Move to cloud structure (Google Drive) and organize with Airtable links." },
+        { text: "Cloud drive – no naming convention", score: 3, rec: "Automate file filing using Make.com to move files based on Airtable records." },
+        { text: "Auto‑filed and indexed via workflow", score: 5 }
+    ], category: "Operations" },
+    { id: "scheduling", text: "Meeting scheduling process?", options: [
+        { text: "Back‑and‑forth emails", score: 1, rec: "Implement Calendly and sync bookings to Airtable via Make.com." },
+        { text: "Use a booking link", score: 3, rec: "Automate pre-meeting prep by triggering Airtable workflows from Calendly events using Make.com." },
+        { text: "AI‑assisted scheduling", score: 5 }
+    ], category: "Operations" },
+    { id: "inventory", text: "Inventory or product access management?", options: [
+        { text: "Manual tracking", score: 1, rec: "Track inventory via Airtable, with Make.com sending low-stock alerts." },
+        { text: "Basic alerts", score: 3, rec: "Automate replenishment via API using Make.com to order from suppliers when Airtable stock hits threshold." },
+        { text: "Real‑time auto-replenishment", score: 5 }
+    ], category: "Operations" },
+    { id: "invoices", text: "Lifecycle of an unpaid invoice?", options: [
+        { text: "Manual bank check", score: 1, rec: "Implement collections engine: Use Airtable to track invoices and Make.com to send payment reminders." },
+        { text: "Email when I remember", score: 3, rec: "Set automated reminders via Make.com based on Airtable due dates." },
+        { text: "Auto-escalation collections engine", score: 5 }
+    ], category: "Finance" },
+    { id: "ticket", text: "Avg transaction or invoice value?", options: [
+        { text: "Over $2,000", score: 5, val: 2000 },
+        { text: "$500 - $2,000", score: 3, val: 1000 },
+        { text: "Under $500", score: 1, val: 250 }
+    ], category: "Finance" },
+    { id: "expenses", text: "Expense tracking method?", options: [
+        { text: "Paper receipts", score: 1, rec: "Use Hubdoc / Dext, but integrate with Airtable via Make.com for approval workflows." },
+        { text: "Spreadsheet + manual approval", score: 3, rec: "Automate Slack approvals for expenses stored in Airtable, using Make.com." },
+        { text: "Automated scanning + workflows", score: 5 }
+    ], category: "Finance" },
+    { id: "payroll", text: "Payroll processing method?", options: [
+        { text: "Manual calculations", score: 1, rec: "Switch to API-supported payroll (e.g., Gusto) and sync with Airtable via Make.com." },
+        { text: "Software + manual time tracking", score: 3, rec: "Sync time tracking data from Airtable to payroll via Make.com." },
+        { text: "Fully integrated time and payroll", score: 5 }
+    ], category: "Finance" },
+    { id: "reporting", text: "Report generation method?", options: [
+        { text: "Manual data pull", score: 1, rec: "Build Airtable dashboards with real-time data from Make.com integrations." },
+        { text: "Scheduled Excel exports", score: 3, rec: "Automate aggregation using Make.com to populate Airtable summary tables." },
+        { text: "Live dashboards + auto-refresh", score: 5 }
+    ], category: "Finance" },
+    { id: "recruiting", text: "Job applicant screening process?", options: [
+        { text: "Manual resume review", score: 1, rec: "Use AI pre-screening with Google Gemini, storing candidate data in Airtable." },
+        { text: "Keyword filtering", score: 3, rec: "Automate video interviews scheduling via Make.com after Airtable screening." },
+        { text: "AI‑powered candidate matching", score: 5 }
+    ], category: "People" },
+    { id: "onboarding_employee", text: "New employee onboarding process?", options: [
+        { text: "Manual account setup", score: 1, rec: "Automate account provisioning using Make.com to trigger Okta/Google Workspace from Airtable." },
+        { text: "Checklist with manual chasing", score: 3, rec: "Build onboarding portal with Airtable and Softr, automated via Make.com." },
+        { text: "Automated provisioning + training", score: 5 }
+    ], category: "People" },
+    { id: "time_off", text: "Time‑off request handling?", options: [
+        { text: "Manual chat / email", score: 1, rec: "Use form-based requests (Airtable forms) with Make.com to notify managers." },
+        { text: "Form + manual calendar update", score: 3, rec: "Sync leave to calendar via Make.com when Airtable request is approved." },
+        { text: "Auto request, approval, and sync", score: 5 }
+    ], category: "People" },
+    { id: "business_intelligence", text: "Measurement of business metrics?", options: [
+        { text: "No consistent tracking", score: 1, rec: "Define core KPIs and track them in Airtable dashboards, updated via Make.com." },
+        { text: "Monthly manual reports", score: 3, rec: "Build automated KPI dashboard with Airtable and Make.com, using Gemini for anomaly detection." },
+        { text: "Real‑time + AI anomaly detection", score: 5 }
+    ], category: "Data & AI" },
+    { id: "forecasting", text: "Sales or cash flow forecasting?", options: [
+        { text: "Gut feel", score: 1, rec: "Implement linear forecasting using Airtable and Make.com to project sales based on historical data." },
+        { text: "Historical Excel averages", score: 3, rec: "Automate projections with Airtable formulas and Make.com data pipelines." },
+        { text: "AI‑assisted predictive forecasting", score: 5 }
+    ], category: "Data & AI" },
+    { id: "data_integration", text: "Customer data unification status?", options: [
+        { text: "Isolated silos", score: 1, rec: "Create Single Source of Truth in Airtable, syncing all apps via Make.com." },
+        { text: "Manual exports/imports", score: 3, rec: "Sync via Make.com to keep Airtable records updated across platforms." },
+        { text: "Unified view via middleware", score: 5 }
+    ], category: "Data & AI" },
+    { id: "backup", text: "Critical data backup method?", options: [
+        { text: "No formal backup", score: 1, rec: "Automate cloud-to-cloud backup using Make.com to copy Airtable data to Google Sheets." },
+        { text: "Manual periodic backups", score: 3, rec: "Schedule versioned backups using Make.com to archive Airtable snapshots." },
+        { text: "Automated, versioned, off‑site", score: 5 }
+    ], category: "Compliance" },
+    { id: "access_control", text: "User permission management?", options: [
+        { text: "Shared logins", score: 1, rec: "Implement SSO and manage roles in Airtable, with Make.com automating offboarding." },
+        { text: "Separate logins / manual exit", score: 3, rec: "Automate offboarding via Make.com to revoke access when Airtable status changes." },
+        { text: "Automated role‑based provisioning", score: 5 }
+    ], category: "Compliance" }
 ];
 
 let currentStep = 0, totalScore = 0, auditLog = [], userSelections = {}, userInfo = { name: "", email: "", business: "" };
@@ -304,7 +436,7 @@ function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause
     const p3 = createPageDiv();
     p3.innerHTML = `
         <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px;">Actionable Next Steps</h2>
-        <p style="margin:20px 0; color:#334155;">Based on your responses, here are the most critical automation opportunities:</p>
+        <p style="margin:20px 0; color:#334155;">Based on your responses, here are the most critical automation opportunities using your stack (Airtable, Google Gemini, Make.com):</p>
         ${recommendations.length ? recommendations.map(rec => `
             <div style="margin-bottom:15px; padding:15px; background:#f8fafc; border-left:6px solid #2563eb; border-radius:0 8px 8px 0;">
                 <strong style="color:#0f172a;">${rec.category}</strong>: ${rec.rec}
