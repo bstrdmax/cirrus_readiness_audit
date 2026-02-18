@@ -1,5 +1,6 @@
 /**
  * CIRRUS AUTOMATIONS - LOGIC, SCORING, RISK & WEBHOOK ENGINE
+ * COMPLETE INTEGRATED BUILD
  */
 
 // --- CONFIGURATION: PASTE YOUR WEBHOOK URL HERE ---
@@ -82,8 +83,6 @@ const questions = [
         insight: "Automated lead scoring increases sales productivity by 30%.",
         category: "Marketing"
     },
-
-    // ----- 2. SALES & PROPOSALS -----
     {
         id: "proposals",
         text: "How are quotes, proposals, or contracts created?",
@@ -123,8 +122,6 @@ const questions = [
         insight: "Automated renewals can increase retention rates by 15‑20%.",
         category: "Sales"
     },
-
-    // ----- 3. CUSTOMER SERVICE & SUCCESS -----
     {
         id: "reviews",
         text: "When a customer leaves a review, what is the process?",
@@ -190,8 +187,6 @@ const questions = [
         insight: "Self‑service reduces support tickets by 30‑50%.",
         category: "Customer Service"
     },
-
-    // ----- 4. OPERATIONS & WORKFLOW -----
     {
         id: "integration",
         text: "Are your core tools integrated (Stripe, Skool, CRM)?",
@@ -269,8 +264,6 @@ const questions = [
         insight: "Automated inventory reduces stockouts by 30% and carrying costs by 20%.",
         category: "Operations"
     },
-
-    // ----- 5. FINANCE & ADMIN -----
     {
         id: "invoices",
         text: "What is the 'Life Cycle' of an unpaid invoice in your business?",
@@ -333,8 +326,6 @@ const questions = [
         insight: "Automated reporting frees up 1 day per week for finance teams.",
         category: "Finance"
     },
-
-    // ----- 6. PEOPLE & HIRING -----
     {
         id: "recruiting",
         text: "How do you screen job applicants?",
@@ -374,8 +365,6 @@ const questions = [
         insight: "Automated absence tracking reduces administrative work by 90%.",
         category: "People"
     },
-
-    // ----- 7. DATA, ANALYTICS & AI ADOPTION -----
     {
         id: "business_intelligence",
         text: "How do you measure key business metrics?",
@@ -415,8 +404,6 @@ const questions = [
         insight: "Unified data increases marketing ROI by 15‑20%.",
         category: "Data & AI"
     },
-
-    // ----- 8. COMPLIANCE & SECURITY -----
     {
         id: "backup",
         text: "How is your critical business data backed up?",
@@ -482,7 +469,8 @@ function renderQuestion() {
     });
 
     const progressPct = (currentStep / questions.length) * 100;
-    document.getElementById('progress').style.width = progressPct + '%';
+    const progressEl = document.getElementById('progress');
+    if (progressEl) progressEl.style.width = progressPct + '%';
 }
 
 function selectOption(id, qText, opt, insight, category) {
@@ -528,7 +516,8 @@ const blueprintMap = {
 function processResults() {
     document.getElementById('step1').classList.remove('active');
     document.getElementById('step2').classList.add('active');
-    document.getElementById('progress').style.width = '100%';
+    const progressEl = document.getElementById('progress');
+    if (progressEl) progressEl.style.width = '100%';
 
     const weeklyAdmin = userSelections['admin_val'] || 1;
     const monthlyAdmin = weeklyAdmin * 4;
@@ -596,18 +585,20 @@ function processResults() {
 
     const light = document.getElementById('traffic-light');
     const badge = document.getElementById('status-badge');
-    const riskRatingVal = document.getElementById('risk-rating'); // New element if exists
+    const riskRatingVal = document.getElementById('risk-rating');
     
     let statusText = "FRICTION";
-    let color = "#f59e0b";
+    let color = "#f59e0b"; // Yellow-ish
     let riskLevel = "Medium";
 
     if (maturityPct >= 80) { color = "#10b981"; statusText = "OPTIMAL"; riskLevel = "Low"; }
     else if (maturityPct < 50) { color = "#ef4444"; statusText = "CRITICAL RISK"; riskLevel = "High"; }
 
-    light.style.backgroundColor = color;
-    badge.style.backgroundColor = color;
-    badge.innerText = statusText;
+    if (light) light.style.backgroundColor = color;
+    if (badge) {
+        badge.style.backgroundColor = color;
+        badge.innerText = statusText;
+    }
     if(riskRatingVal) riskRatingVal.innerText = riskLevel;
 
     document.getElementById('result-title').innerText = statusText + " - Diagnostic Complete";
@@ -616,9 +607,11 @@ function processResults() {
     const nextStepsContainer = document.getElementById('next-steps-container');
     nextStepsContainer.innerHTML = recommendations.map(r => `<div class="action-item" style="border-left: 4px solid ${color};"><strong>🔧 ${r.category}:</strong> ${r.recommendation}</div>`).join('');
 
-    // Update PDF placeholders
-    document.getElementById('pdf-name').innerText = userInfo.name;
-    document.getElementById('pdf-date').innerText = new Date().toLocaleDateString();
+    // Update PDF placeholders inside the hidden template
+    const pdfName = document.getElementById('pdf-name');
+    const pdfDate = document.getElementById('pdf-date');
+    if (pdfName) pdfName.innerText = userInfo.name;
+    if (pdfDate) pdfDate.innerText = new Date().toLocaleDateString();
     
     // Automatic Webhook Trigger
     sendToWebhook(maturityPct, riskLevel, finalComp, annualRisk);
@@ -645,36 +638,85 @@ async function sendToWebhook(maturity, risk, complexity, revRisk) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        console.log("Diagnostic data synced to Airtable.");
+        console.log("Diagnostic data synced.");
     } catch (e) {
         console.error("Webhook sync failed.", e);
     }
 }
 
-function escapeHtml(unsafe) {
-    return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
-async function generatePDF() {
-    const btn = document.getElementById('pdf-btn');
-    const element = document.getElementById('pdf-template');
-    btn.disabled = true;
-    btn.innerText = 'Preparing Report...';
-
-    const originalElementStyle = element.getAttribute('style') || '';
-    element.style.cssText = `display: block !important; visibility: visible !important; width: 1800px !important; background: white !important; font-size: 24px !important;`;
-
-    try {
-        const canvas = await html2canvas(element, { scale: 2, useCORS: true, windowWidth: 1800 });
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'in', 'letter');
-        const imgData = canvas.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgData, 'JPEG', 0.3, 0.3, 7.9, (canvas.height * 7.9) / canvas.width);
-        pdf.save(`Diagnostic_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
-    } catch (err) { console.error(err); } 
-    finally {
-        element.setAttribute('style', originalElementStyle);
-        btn.disabled = false;
-        btn.innerText = '📥 Export Professional PDF Report';
+// --- FULLY INTEGRATED PDF GENERATION SECTION ---
+async function generatePDF() {    
+    const btn = document.getElementById('pdf-btn');    
+    const element = document.getElementById('pdf-template');    
+    btn.disabled = true;    
+    btn.innerText = 'Preparing Report...';    
+    
+    // --- Save original styles ---    
+    const originalStyle = element.getAttribute('style') || '';    
+    
+    // --- Apply the EXACT working layout (OPACITY = 1) ---    
+    element.style.cssText = `        
+        display: block !important;        
+        visibility: visible !important;        
+        opacity: 1 !important;          /* Fully opaque – browser MUST paint */        
+        position: relative !important;        
+        width: 800px !important;        
+        margin: 20px auto !important;        
+        background: white !important;        
+        border: none !important;        
+        z-index: 10000 !important;        
+        pointer-events: none !important;        
+        height: auto !important;    
+    `;    
+    
+    // --- Force layout & fonts ---    
+    element.offsetHeight;    
+    await document.fonts.ready;    
+    await new Promise(resolve => requestAnimationFrame(resolve)); // wait for paint    
+    
+    try {        
+        // Capture canvas        
+        const canvas = await html2canvas(element, {            
+            scale: 2,            
+            useCORS: true,            
+            backgroundColor: '#ffffff',            
+            logging: false,            
+            allowTaint: false,        
+        });        
+        
+        // Convert to JPEG        
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);        
+        
+        // Create PDF        
+        const { jsPDF } = window.jspdf;        
+        const pdf = new jsPDF({            
+            unit: 'in',            
+            format: 'letter',            
+            orientation: 'portrait'        
+        });        
+        
+        const pageWidth = pdf.internal.pageSize.getWidth();        
+        const margin = 0.4;        
+        const imgWidth = pageWidth - margin * 2;        
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;        
+        
+        pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);        
+        pdf.save(`Diagnostic_Report_${(userInfo.name || 'client').replace(/\s+/g, '_')}.pdf`);        
+        btn.innerText = '📥 Export Professional PDF Report';    
+    } catch (err) {        
+        console.error('PDF Generation Error:', err);        
+        btn.innerText = 'Error: Try Again';    
+    } finally {        
+        // --- IMMEDIATELY restore original hidden styles ---        
+        element.setAttribute('style', originalStyle);        
+        btn.disabled = false;    
     }
 }
+
+// Attach Event Listener to PDF button once the DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const pdfBtn = document.getElementById('pdf-btn');
+    if (pdfBtn) {
+        pdfBtn.addEventListener('click', generatePDF);
+    }
+});
