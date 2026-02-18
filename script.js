@@ -97,7 +97,7 @@ async function processResults() {
 
     // Update HTML results with recommendations and risk insight
     displayRecommendations(recommendations);
-    document.getElementById('diag-text').innerHTML = rootCause.detailedSummary; // rich HTML
+    document.getElementById('diag-text').innerHTML = rootCause.detailedSummary;
 
     // Build PDF template with all sections
     setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause, categoryAverages, riskStatements);
@@ -105,7 +105,7 @@ async function processResults() {
     // Allow time for rendering, then generate PDF and sync
     try {
         await new Promise(resolve => setTimeout(resolve, 500));
-        const pdfBlob = await generatePDF(true); // silent generation
+        const pdfBlob = await generatePDF(true);
         if (pdfBlob) {
             await sendToWebhook({
                 name: userInfo.name,
@@ -154,11 +154,9 @@ function getRootCause(categoryAverages) {
         }
     }
 
-    // Create a rich summary
     const riskLevel = lowestAvg < 3 ? "High Risk" : (lowestAvg < 4 ? "Medium Risk" : "Low Risk");
     const summary = `Your lowest performing area is <strong>${lowestCategory}</strong> with an average score of ${lowestAvg.toFixed(1)}/5 (${riskLevel}).`;
 
-    // Detailed explanation based on category
     let explanation = "";
     switch (lowestCategory) {
         case "Marketing":
@@ -209,7 +207,6 @@ function generateRiskStatements(categoryAverages) {
             riskLevel = "Low";
             riskDescription = `Low risk – your ${category.toLowerCase()} processes are well-automated.`;
         }
-        // Add AI/automation specific note
         let aiNote = "";
         if (avg < 4) {
             aiNote = " AI/automation could further reduce risk and improve performance.";
@@ -228,8 +225,8 @@ function generateRiskStatements(categoryAverages) {
 function getRecommendations() {
     return auditLog
         .filter(item => item.score <= 3 && item.rec && item.rec !== "Maintain current standard.")
-        .sort((a, b) => a.score - b.score) // most critical first
-        .slice(0, 10); // limit to top 10
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 10);
 }
 
 /** * Populate the HTML next-steps container */
@@ -248,7 +245,7 @@ function displayRecommendations(recommendations) {
     });
 }
 
-/** * Build the hidden PDF template with full analysis */
+/** * Build the hidden PDF template with clear pages */
 function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause, categoryAverages, riskStatements) {
     const template = document.getElementById('pdf-template');
     template.innerHTML = '';
@@ -300,21 +297,27 @@ function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause
                 `).join('')}
             </tbody>
         </table>
-
-        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px; margin-top:30px;">Recommended Controls</h2>
-        ${recommendations.length ? recommendations.map(rec => `
-            <div style="margin-bottom:12px; padding:10px; background:#f8fafc; border-left:4px solid #2563eb;">
-                <strong>${rec.category}</strong>: ${rec.rec}
-            </div>
-        `).join('') : '<p>No critical actions – your processes are strong!</p>'}
     `;
     template.appendChild(p2);
 
-    // Page 3+: Audit Detail (Chunked 11 per page)
+    // Page 3: Actionable Next Steps
+    const p3 = createPageDiv();
+    p3.innerHTML = `
+        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px;">Actionable Next Steps</h2>
+        <p style="margin:20px 0; color:#334155;">Based on your responses, here are the most critical automation opportunities:</p>
+        ${recommendations.length ? recommendations.map(rec => `
+            <div style="margin-bottom:15px; padding:15px; background:#f8fafc; border-left:6px solid #2563eb; border-radius:0 8px 8px 0;">
+                <strong style="color:#0f172a;">${rec.category}</strong>: ${rec.rec}
+            </div>
+        `).join('') : '<p style="padding:15px; background:#f8fafc;">No critical actions identified – your processes are strong!</p>'}
+    `;
+    template.appendChild(p3);
+
+    // Page 4+: Audit Detail (Chunked 11 per page)
     const chunks = chunkArray(auditLog, 11);
     chunks.forEach((chunk, i) => {
         const p = createPageDiv();
-        p.innerHTML = `<h3>Audit Detail (Page ${i+1})</h3>` + chunk.map((item, idx) => `
+        p.innerHTML = `<h3>Audit Detail (Page ${i+4})</h3>` + chunk.map((item, idx) => `
             <div style="margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
                 <div style="font-weight:800; font-size:11px; color:#334155;">#${i*11+idx+1}. ${item.q}</div>
                 <div style="font-size:10px; color:#64748b; margin-top:4px;">Response: ${item.a} (Score: ${item.score}/5)</div>
@@ -324,7 +327,7 @@ function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause
     });
 }
 
-/** * HIGH-FIDELITY PDF RENDERER (with timeout & error handling) */
+/** * PDF RENDERER (unchanged, robust) */
 async function generatePDF(isAutoSend = false) {
     const btn = document.getElementById('pdf-btn');
     const template = document.getElementById('pdf-template');
@@ -339,7 +342,6 @@ async function generatePDF(isAutoSend = false) {
         btn.innerText = 'Compiling...';
     }
 
-    // Make template visible and force reflow
     const originalDisplay = template.style.display;
     template.style.cssText = `
         display:block !important;
@@ -349,7 +351,7 @@ async function generatePDF(isAutoSend = false) {
         width:800px !important;
         background:white !important;
     `;
-    template.offsetHeight; // Force layout
+    template.offsetHeight;
 
     await document.fonts.ready;
     await new Promise(resolve => requestAnimationFrame(resolve));
@@ -391,7 +393,7 @@ async function generatePDF(isAutoSend = false) {
     }
 }
 
-/** * CRM WEBHOOK SYNC (using FormData) */
+/** * WEBHOOK SYNC (using FormData) */
 async function sendToWebhook(data, pdfBlob) {
     const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
 
