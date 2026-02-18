@@ -1,6 +1,9 @@
 /**
- * CIRRUS AUTOMATIONS - LOGIC & PDF ENGINE
+ * CIRRUS AUTOMATIONS - LOGIC, SCORING, RISK & WEBHOOK ENGINE
  */
+
+// --- CONFIGURATION: PASTE YOUR WEBHOOK URL HERE ---
+const WEBHOOK_URL = "YOUR_MAKE_OR_AIRTABLE_WEBHOOK_URL_HERE";
 
 const questions = [
     // ----- 1. MARKETING & CUSTOMER ACQUISITION -----
@@ -474,7 +477,7 @@ function renderQuestion() {
         const btn = document.createElement('button');
         btn.className = 'option';
         btn.innerText = opt.text;
-        btn.onclick = () => selectOption(q.id, q.text, opt, q.insight);
+        btn.onclick = () => selectOption(q.id, q.text, opt, q.insight, q.category);
         optionsDiv.appendChild(btn);
     });
 
@@ -482,12 +485,12 @@ function renderQuestion() {
     document.getElementById('progress').style.width = progressPct + '%';
 }
 
-function selectOption(id, qText, opt, insight) {
+function selectOption(id, qText, opt, insight, category) {
     totalScore += opt.score;
     userSelections[id] = opt.score;
     if (opt.val) userSelections[id + "_val"] = opt.val;
     
-    auditLog.push({ q: qText, a: opt.text, insight: insight || "" });
+    auditLog.push({ q: qText, a: opt.text, category: category, score: opt.score, insight: insight || "" });
 
     currentStep++;
     if (currentStep < questions.length) {
@@ -499,166 +502,19 @@ function selectOption(id, qText, opt, insight) {
 
 // ----- MAKE.COM & AIRTABLE BLUEPRINTS LIBRARY -----
 const blueprintLibrary = {
-    // Lead capture & CRM
-    "leads_airtable": `{
-  "name": "Lead Management",
-  "tables": [
-    {
-      "name": "Leads",
-      "fields": [
-        { "name": "Name", "type": "singleLineText" },
-        { "name": "Email", "type": "email" },
-        { "name": "Status", "type": "singleSelect", "options": { "choices": ["New", "Contacted", "Qualified", "Lost"] } },
-        { "name": "Score", "type": "number" },
-        { "name": "Last Contacted", "type": "date" }
-      ]
-    }
-  ]
-}`,
-    "leads_make": `{
-  "scenario": "Webform → Airtable + Slack",
-  "modules": [
-    { "module": "Webhook", "trigger": "Receive form data" },
-    { "module": "Airtable", "operation": "Create Record", "base": "Lead Management", "table": "Leads" },
-    { "module": "Slack", "operation": "Send Message", "channel": "#leads" }
-  ]
-}`,
-
-    // Invoicing & collections
-    "invoices_airtable": `{
-  "name": "Invoicing",
-  "tables": [
-    {
-      "name": "Invoices",
-      "fields": [
-        { "name": "Invoice ID", "type": "singleLineText" },
-        { "name": "Customer", "type": "singleLineText" },
-        { "name": "Amount", "type": "currency" },
-        { "name": "Due Date", "type": "date" },
-        { "name": "Status", "type": "singleSelect", "options": { "choices": ["Paid", "Unpaid", "Overdue"] } },
-        { "name": "Reminder Count", "type": "number" }
-      ]
-    }
-  ]
-}`,
-    "invoices_make": `{
-  "scenario": "Daily unpaid invoice reminder",
-  "modules": [
-    { "module": "Schedule", "trigger": "Every day at 09:00" },
-    { "module": "Airtable", "operation": "Search Records", "base": "Invoicing", "table": "Invoices", "filter": "{Status} = 'Unpaid'" },
-    { "module": "Gmail", "operation": "Send Email", "to": "{{Customer Email}}", "subject": "Invoice overdue" }
-  ]
-}`,
-
-    // Onboarding
-    "onboarding_airtable": `{
-  "name": "Client Onboarding",
-  "tables": [
-    {
-      "name": "Clients",
-      "fields": [
-        { "name": "Company", "type": "singleLineText" },
-        { "name": "Primary Contact", "type": "singleLineText" },
-        { "name": "Email", "type": "email" },
-        { "name": "Start Date", "type": "date" },
-        { "name": "Onboarding Status", "type": "singleSelect", "options": { "choices": ["Welcome Sent", "Docs Signed", "Access Granted", "Complete"] } }
-      ]
-    }
-  ]
-}`,
-    "onboarding_make": `{
-  "scenario": "Stripe invoice paid → onboarding flow",
-  "modules": [
-    { "module": "Stripe", "trigger": "New invoice paid" },
-    { "module": "Airtable", "operation": "Create Record", "base": "Client Onboarding", "table": "Clients" },
-    { "module": "Google Drive", "operation": "Create Folder", "name": "{{Company}} - {{Start Date}}" },
-    { "module": "Gmail", "operation": "Send Email", "subject": "Welcome!" }
-  ]
-}`,
-
-    // Support tickets
-    "support_airtable": `{
-  "name": "Support Tickets",
-  "tables": [
-    {
-      "name": "Tickets",
-      "fields": [
-        { "name": "Subject", "type": "singleLineText" },
-        { "name": "Requester", "type": "email" },
-        { "name": "Status", "type": "singleSelect", "options": { "choices": ["Open", "In Progress", "Resolved"] } },
-        { "name": "Priority", "type": "singleSelect", "options": { "choices": ["Low", "Medium", "High"] } }
-      ]
-    }
-  ]
-}`,
-    "support_make": `{
-  "scenario": "Email to ticket",
-  "modules": [
-    { "module": "Email", "trigger": "Watch support@ mailbox" },
-    { "module": "Airtable", "operation": "Create Record", "base": "Support Tickets", "table": "Tickets" },
-    { "module": "Slack", "operation": "Send Message", "channel": "#support", "text": "New ticket from {{Requester}}" }
-  ]
-}`,
-
-    // Project management
-    "project_airtable": `{
-  "name": "Project Hub",
-  "tables": [
-    {
-      "name": "Projects",
-      "fields": [
-        { "name": "Project Name", "type": "singleLineText" },
-        { "name": "Deadline", "type": "date" },
-        { "name": "Status", "type": "singleSelect", "options": { "choices": ["On Track", "At Risk", "Completed"] } }
-      ]
-    },
-    {
-      "name": "Tasks",
-      "fields": [
-        { "name": "Task Name", "type": "singleLineText" },
-        { "name": "Assigned To", "type": "singleLineText" },
-        { "name": "Due Date", "type": "date" },
-        { "name": "Project", "type": "foreignKey", "foreignTable": "Projects" }
-      ]
-    }
-  ]
-}`,
-
-    // Expense tracking
-    "expenses_airtable": `{
-  "name": "Expenses",
-  "tables": [
-    {
-      "name": "Expenses",
-      "fields": [
-        { "name": "Date", "type": "date" },
-        { "name": "Merchant", "type": "singleLineText" },
-        { "name": "Amount", "type": "currency" },
-        { "name": "Category", "type": "singleSelect", "options": { "choices": ["Travel", "Software", "Office"] } },
-        { "name": "Receipt", "type": "multipleAttachments" }
-      ]
-    }
-  ]
-}`,
-
-    // NPS / Feedback
-    "feedback_airtable": `{
-  "name": "Customer Feedback",
-  "tables": [
-    {
-      "name": "NPS Responses",
-      "fields": [
-        { "name": "Customer Email", "type": "email" },
-        { "name": "Score", "type": "number" },
-        { "name": "Comment", "type": "multilineText" },
-        { "name": "Category", "type": "singleSelect", "options": { "choices": ["Promoter", "Passive", "Detractor"] } }
-      ]
-    }
-  ]
-}`
+    "leads_airtable": `{"name": "Lead Management", "tables": [{"name": "Leads", "fields": [{"name": "Name", "type": "singleLineText"}, {"name": "Email", "type": "email"}, {"name": "Status", "type": "singleSelect", "options": {"choices": ["New", "Contacted", "Qualified", "Lost"]}}, {"name": "Score", "type": "number"}, {"name": "Last Contacted", "type": "date"}]}]}`,
+    "leads_make": `{"scenario": "Webform → Airtable + Slack", "modules": [{"module": "Webhook", "trigger": "Receive form data"}, {"module": "Airtable", "operation": "Create Record", "base": "Lead Management", "table": "Leads"}, {"module": "Slack", "operation": "Send Message", "channel": "#leads"}]}`,
+    "invoices_airtable": `{"name": "Invoicing", "tables": [{"name": "Invoices", "fields": [{"name": "Invoice ID", "type": "singleLineText"}, {"name": "Customer", "type": "singleLineText"}, {"name": "Amount", "type": "currency"}, {"name": "Due Date", "type": "date"}, {"name": "Status", "type": "singleSelect", "options": {"choices": ["Paid", "Unpaid", "Overdue"]}}, {"name": "Reminder Count", "type": "number"}]}]}`,
+    "invoices_make": `{"scenario": "Daily unpaid invoice reminder", "modules": [{"module": "Schedule", "trigger": "Every day at 09:00"}, {"module": "Airtable", "operation": "Search Records", "base": "Invoicing", "table": "Invoices", "filter": "{Status} = 'Unpaid'"}, {"module": "Gmail", "operation": "Send Email", "to": "{{Customer Email}}", "subject": "Invoice overdue"}]}`,
+    "onboarding_airtable": `{"name": "Client Onboarding", "tables": [{"name": "Clients", "fields": [{"name": "Company", "type": "singleLineText"}, {"name": "Primary Contact", "type": "singleLineText"}, {"name": "Email", "type": "email"}, {"name": "Start Date", "type": "date"}, {"name": "Onboarding Status", "type": "singleSelect", "options": {"choices": ["Welcome Sent", "Docs Signed", "Access Granted", "Complete"]}}]}]}`,
+    "onboarding_make": `{"scenario": "Stripe invoice paid → onboarding flow", "modules": [{"module": "Stripe", "trigger": "New invoice paid"}, {"module": "Airtable", "operation": "Create Record", "base": "Client Onboarding", "table": "Clients"}, {"module": "Google Drive", "operation": "Create Folder", "name": "{{Company}} - {{Start Date}}"}, {"module": "Gmail", "operation": "Send Email", "subject": "Welcome!"}]}`,
+    "support_airtable": `{"name": "Support Tickets", "tables": [{"name": "Tickets", "fields": [{"name": "Subject", "type": "singleLineText"}, {"name": "Requester", "type": "email"}, {"name": "Status", "type": "singleSelect", "options": {"choices": ["Open", "In Progress", "Resolved"]}}, {"name": "Priority", "type": "singleSelect", "options": {"choices": ["Low", "Medium", "High"]}}]}]}`,
+    "support_make": `{"scenario": "Email to ticket", "modules": [{"module": "Email", "trigger": "Watch support@ mailbox"}, {"module": "Airtable", "operation": "Create Record", "base": "Support Tickets", "table": "Tickets"}, {"module": "Slack", "operation": "Send Message", "channel": "#support", "text": "New ticket from {{Requester}}"}]}`,
+    "project_airtable": `{"name": "Project Hub", "tables": [{"name": "Projects", "fields": [{"name": "Project Name", "type": "singleLineText"}, {"name": "Deadline", "type": "date"}, {"name": "Status", "type": "singleSelect", "options": {"choices": ["On Track", "At Risk", "Completed"]}}]}, {"name": "Tasks", "fields": [{"name": "Task Name", "type": "singleLineText"}, {"name": "Assigned To", "type": "singleLineText"}, {"name": "Due Date", "type": "date"}, {"name": "Project", "type": "foreignKey", "foreignTable": "Projects"}]}]}`,
+    "expenses_airtable": `{"name": "Expenses", "tables": [{"name": "Expenses", "fields": [{"name": "Date", "type": "date"}, {"name": "Merchant", "type": "singleLineText"}, {"name": "Amount", "type": "currency"}, {"name": "Category", "type": "singleSelect", "options": {"choices": ["Travel", "Software", "Office"]}}, {"name": "Receipt", "type": "multipleAttachments"}]}]}`,
+    "feedback_airtable": `{"name": "Customer Feedback", "tables": [{"name": "NPS Responses", "fields": [{"name": "Customer Email", "type": "email"}, {"name": "Score", "type": "number"}, {"name": "Comment", "type": "multilineText"}, {"name": "Category", "type": "singleSelect", "options": {"choices": ["Promoter", "Passive", "Detractor"]}}]}]}`
 };
 
-// Map recommendation IDs to blueprint keys
 const blueprintMap = {
     "leads": ["leads_airtable", "leads_make"],
     "invoices": ["invoices_airtable", "invoices_make"],
@@ -667,7 +523,6 @@ const blueprintMap = {
     "project_management": ["project_airtable"],
     "expenses": ["expenses_airtable"],
     "feedback": ["feedback_airtable"]
-    // add more as needed
 };
 
 function processResults() {
@@ -675,13 +530,16 @@ function processResults() {
     document.getElementById('step2').classList.add('active');
     document.getElementById('progress').style.width = '100%';
 
-    // --- Existing financial / admin metrics (unchanged) ---
     const weeklyAdmin = userSelections['admin_val'] || 1;
     const monthlyAdmin = weeklyAdmin * 4;
     const invoiceRiskFactor = userSelections['invoices'] === 1 ? 0.15 : (userSelections['invoices'] === 3 ? 0.07 : 0.02);
     const avgTicket = userSelections['ticket_val'] || 500;
     const monthlyVolume = userSelections['volume_val'] || 10;
     const annualRisk = Math.round(avgTicket * monthlyVolume * 12 * invoiceRiskFactor);
+
+    // Scoring & Complexity
+    const maxScore = questions.length * 5;
+    const maturityPct = Math.round((totalScore / maxScore) * 100);
 
     const stdSum = (userSelections['invoices'] || 0) + (userSelections['integration'] || 0) + (userSelections['onboarding'] || 0);
     const stdComp = Math.round(((15 - stdSum) / 15) * 100);
@@ -690,84 +548,45 @@ function processResults() {
     const riskOffset = userSelections['integration'] === 1 ? 25 : 0;
     const finalComp = Math.min(99, Math.round((stdComp * 0.4) + (aiComp * 0.4) + riskOffset));
 
-    // --- Category performance analysis (all 33 questions) ---
-    const categories = {
-        'Marketing': [],
-        'Sales': [],
-        'Customer Service': [],
-        'Operations': [],
-        'Finance': [],
-        'People': [],
-        'Data & AI': [],
-        'Compliance': []
-    };
-
-    questions.forEach(q => {
-        if (q.category && userSelections[q.id] !== undefined) {
-            categories[q.category].push(userSelections[q.id]);
-        }
-    });
-
+    // Category analysis
     const categoryScores = {};
-    Object.keys(categories).forEach(cat => {
-        const scores = categories[cat];
-        if (scores.length > 0) {
-            const avg = scores.reduce((a,b) => a + b, 0) / scores.length;
+    const categoriesList = ['Marketing', 'Sales', 'Customer Service', 'Operations', 'Finance', 'People', 'Data & AI', 'Compliance'];
+    
+    categoriesList.forEach(cat => {
+        const catItems = auditLog.filter(item => item.category === cat);
+        if (catItems.length > 0) {
+            const avg = catItems.reduce((a, b) => a + b.score, 0) / catItems.length;
             categoryScores[cat] = Math.round((avg / 5) * 100);
-        } else {
-            categoryScores[cat] = 0;
-        }
+        } else { categoryScores[cat] = 0; }
     });
 
     const sortedCategories = Object.keys(categoryScores).sort((a,b) => categoryScores[a] - categoryScores[b]);
     const topWeakCategories = sortedCategories.slice(0, 3);
 
-    // --- Generate prioritized recommendations with Make/Airtable focus & blueprints ---
+    // Recommendations & Blueprints
     let recommendations = [];
-    let blueprints = []; // for PDF
+    let blueprints = [];
 
     topWeakCategories.forEach(cat => {
-        const catQuestions = questions.filter(q => q.category === cat && userSelections[q.id] !== undefined);
-        const lowQuestions = catQuestions.filter(q => userSelections[q.id] <= 3).sort((a,b) => userSelections[a.id] - userSelections[b.id]);
-        
-        lowQuestions.slice(0, 2).forEach(q => {
-            const score = userSelections[q.id];
-            const option = q.options.find(opt => opt.score === score);
-            let recText = option?.rec || `Build Make.com automation for "${q.text}"`;
+        const lowItems = auditLog.filter(item => item.category === cat && item.score <= 3);
+        lowItems.slice(0, 2).forEach(item => {
+            const qObj = questions.find(q => q.text === item.q);
+            const optObj = qObj.options.find(opt => opt.text === item.a);
             recommendations.push({
                 category: cat,
-                question: q.text,
-                score: score,
-                recommendation: recText,
-                impact: q.insight || "Improves efficiency and reduces errors."
+                question: item.q,
+                recommendation: optObj.rec || `Automate ${cat} data flows via Make.com.`,
+                impact: item.insight || "Improves operational velocity."
             });
-
-            // Add corresponding JSON blueprint if available
-            if (blueprintMap[q.id]) {
-                blueprintMap[q.id].forEach(key => {
-                    if (blueprintLibrary[key]) {
-                        blueprints.push({
-                            category: cat,
-                            title: key.replace('_', ' ').toUpperCase(),
-                            json: blueprintLibrary[key]
-                        });
-                    }
+            if (blueprintMap[qObj.id]) {
+                blueprintMap[qObj.id].forEach(key => {
+                    if (blueprintLibrary[key]) blueprints.push({ category: cat, title: key.toUpperCase(), json: blueprintLibrary[key] });
                 });
             }
         });
     });
 
-    // Fallback if no recommendations
-    if (recommendations.length === 0) {
-        recommendations.push({
-            category: "Overall",
-            question: "Your automation maturity is high!",
-            recommendation: "Focus on predictive AI and advanced Make.com integrations.",
-            impact: "Stay ahead of competitors with real‑time analytics."
-        });
-    }
-
-    // --- Update UI dashboard ---
+    // Update UI
     document.getElementById('hours-lost').innerText = `${monthlyAdmin} hrs`;
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('complexity-score').innerText = finalComp;
@@ -775,276 +594,87 @@ function processResults() {
     document.getElementById('logic-ai').innerText = aiComp + "%";
     document.getElementById('logic-risk').innerText = riskOffset + "%";
 
-    // --- Status & global diagnosis ---
     const light = document.getElementById('traffic-light');
     const badge = document.getElementById('status-badge');
-    const scorePct = (totalScore / (questions.length * 5)) * 100;
-
-    let statusData = {};
-    if (scorePct >= 80) {
-        light.style.backgroundColor = "#10b981";
-        badge.style.backgroundColor = "#10b981";
-        badge.innerText = "OPTIMAL";
-        statusData = {
-            title: "Optimal Engine Status",
-            diag: `Your strongest areas: ${sortedCategories.slice(-2).join(' & ')}. Focus on ${topWeakCategories[0] || 'advanced AI'} to reach full autonomy.`,
-            paradigm: "You are the Owner. The engine runs smoothly. Your next leap is from automation to intelligence.",
-            actions: recommendations.map(r => r.recommendation)
-        };
-    } else if (scorePct >= 50) {
-        light.style.backgroundColor = "#f59e0b";
-        badge.style.backgroundColor = "#f59e0b";
-        badge.innerText = "FRICTION";
-        statusData = {
-            title: "Integrated Friction Detected",
-            diag: `Your biggest bottleneck is ${topWeakCategories[0] || 'operations'}. Fixing this will unlock immediate cash flow and time.`,
-            paradigm: "You are alternating between Owner and Mechanic. Systematize to escape the grind.",
-            actions: recommendations.map(r => r.recommendation)
-        };
-    } else {
-        light.style.backgroundColor = "#ef4444";
-        badge.style.backgroundColor = "#ef4444";
-        badge.innerText = "CRITICAL RISK";
-        statusData = {
-            title: "Foundational Debt Warning",
-            diag: `Manual processes in ${topWeakCategories.slice(0,2).join(' and ') || 'multiple areas'} are burning your time and revenue. Standardize now.`,
-            paradigm: "You are the Mechanic, trapped in the engine room. Every new customer adds to your workload.",
-            actions: recommendations.map(r => r.recommendation)
-        };
-    }
-
-    document.getElementById('result-title').innerText = statusData.title;
-    document.getElementById('diag-text').innerText = statusData.diag;
-    document.getElementById('paradigm-text').innerText = statusData.paradigm;
+    const riskRatingVal = document.getElementById('risk-rating'); // New element if exists
     
-    // Render recommendations with JSON blueprints
-    const nextStepsContainer = document.getElementById('next-steps-container');
-    nextStepsContainer.innerHTML = recommendations.map(r => `
-        <div class="action-item" style="margin-bottom: 20px; border-left: 4px solid ${light.style.backgroundColor}; padding-left: 16px;">
-            <div style="font-weight: 700; margin-bottom: 4px;">🔧 ${r.category}</div>
-            <div style="margin-bottom: 6px;">${r.recommendation}</div>
-            <div style="font-size: 0.9em; color: #475569;">💡 ${r.impact}</div>
-        </div>
-    `).join('');
+    let statusText = "FRICTION";
+    let color = "#f59e0b";
+    let riskLevel = "Medium";
 
-    // --- Populate PDF template ---
+    if (maturityPct >= 80) { color = "#10b981"; statusText = "OPTIMAL"; riskLevel = "Low"; }
+    else if (maturityPct < 50) { color = "#ef4444"; statusText = "CRITICAL RISK"; riskLevel = "High"; }
+
+    light.style.backgroundColor = color;
+    badge.style.backgroundColor = color;
+    badge.innerText = statusText;
+    if(riskRatingVal) riskRatingVal.innerText = riskLevel;
+
+    document.getElementById('result-title').innerText = statusText + " - Diagnostic Complete";
+    document.getElementById('diag-text').innerText = `Primary bottleneck: ${topWeakCategories[0]}. System maturity is at ${maturityPct}%.`;
+    
+    const nextStepsContainer = document.getElementById('next-steps-container');
+    nextStepsContainer.innerHTML = recommendations.map(r => `<div class="action-item" style="border-left: 4px solid ${color};"><strong>🔧 ${r.category}:</strong> ${r.recommendation}</div>`).join('');
+
+    // Update PDF placeholders
     document.getElementById('pdf-name').innerText = userInfo.name;
     document.getElementById('pdf-date').innerText = new Date().toLocaleDateString();
-    document.getElementById('pdf-hours').innerText = `${monthlyAdmin} hrs/mo`;
-    document.getElementById('pdf-risk').innerText = `$${annualRisk.toLocaleString()}/yr`;
-    document.getElementById('pdf-complexity').innerText = finalComp;
-    document.getElementById('pdf-paradigm').innerText = statusData.paradigm;
-    document.getElementById('pdf-diagnosis').innerText = statusData.diag;
     
-    // PDF Actions (recommendations)
-    document.getElementById('pdf-actions').innerHTML = recommendations.map(r => `
-        <div style="padding:12px; border-bottom:1px solid #eee;">
-            <div style="font-weight:bold; color: #0f172a;">${r.category}</div>
-            <div style="margin: 4px 0;">→ ${r.recommendation}</div>
-            <div style="font-size:0.9em; color:#475569;">${r.impact}</div>
-        </div>
-    `).join('');
-
-    // PDF Blueprints (JSON examples)
-    const pdfBlueprintsEl = document.getElementById('pdf-blueprints');
-    if (pdfBlueprintsEl) {
-        pdfBlueprintsEl.innerHTML = blueprints.map(b => `
-            <div style="margin-bottom: 24px;">
-                <div style="font-weight: 700; background: #f1f5f9; padding: 8px; border-radius: 4px;">📁 ${b.category} – ${b.title}</div>
-                <pre style="background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">${escapeHtml(JSON.stringify(JSON.parse(b.json), null, 2))}</pre>
-                <p style="font-size: 14px; color: #334155; margin-top: 6px;">Copy this JSON and import into Airtable (Base settings → Import data) or use as Make scenario blueprint.</p>
-            </div>
-        `).join('');
-    }
-
-    // PDF Audit Log
-    document.getElementById('pdf-audit-log').innerHTML = auditLog.map(log => `
-        <div style="border-bottom:1px solid #f1f5f9; padding:12px 0;">
-            <div style="font-weight:bold; margin-bottom: 4px;">Q: ${log.q}</div>
-            <div style="color: #334155;">A: ${log.a}</div>
-            ${log.insight ? `<div style="font-size:0.85em; color:#475569; margin-top:4px;">📊 ${log.insight}</div>` : ''}
-        </div>
-    `).join('');
+    // Automatic Webhook Trigger
+    sendToWebhook(maturityPct, riskLevel, finalComp, annualRisk);
 }
 
-// Helper to escape HTML in JSON (prevents injection, makes it display as text)
+async function sendToWebhook(maturity, risk, complexity, revRisk) {
+    if (!WEBHOOK_URL || WEBHOOK_URL.includes("YOUR_MAKE")) return;
+
+    const payload = {
+        name: userInfo.name,
+        email: userInfo.email,
+        maturity: maturity + "%",
+        risk_level: risk,
+        complexity_score: complexity,
+        annual_revenue_risk: revRisk,
+        timestamp: new Date().toISOString(),
+        details: auditLog
+    };
+
+    try {
+        await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        console.log("Diagnostic data synced to Airtable.");
+    } catch (e) {
+        console.error("Webhook sync failed.", e);
+    }
+}
+
 function escapeHtml(unsafe) {
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-/**
- * GENUINE PDF GENERATION
- */
 async function generatePDF() {
     const btn = document.getElementById('pdf-btn');
     const element = document.getElementById('pdf-template');
-
     btn.disabled = true;
     btn.innerText = 'Preparing Report...';
 
-    // --- Save original styles (element + ancestors) ---
     const originalElementStyle = element.getAttribute('style') || '';
-    const ancestors = [];
-    let parent = element.parentElement;
-    while (parent) {
-        ancestors.push({
-            el: parent,
-            display: parent.style.display,
-            visibility: parent.style.visibility,
-            overflow: parent.style.overflow,
-            height: parent.style.height,
-            maxHeight: parent.style.maxHeight
-        });
-        parent = parent.parentElement;
-    }
-
-    // --- FORCE visibility, no clipping, WIDE canvas, readable fonts ---
-    element.style.cssText = `
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: relative !important;
-        width: 1800px !important;           /* Ultra‑wide canvas – JSON fits without wrapping */
-        margin: 20px auto !important;
-        background: white !important;
-        border: none !important;
-        z-index: 10000 !important;
-        pointer-events: none !important;
-        height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
-        font-size: 24px !important;         /* Base size */
-        line-height: 1.5 !important;
-    `;
-
-    // --- Force ancestors visible & non‑clipping ---
-    ancestors.forEach(a => {
-        a.el.style.display = 'block';
-        a.el.style.visibility = 'visible';
-        a.el.style.overflow = 'visible';
-        a.el.style.height = 'auto';
-        a.el.style.maxHeight = 'none';
-    });
-
-    // --- CRITICAL: Style all <pre> blocks for perfect JSON rendering ---
-    const preBlocks = element.querySelectorAll('pre');
-    preBlocks.forEach(pre => {
-        pre.style.cssText = `
-            font-family: 'Courier New', Courier, monospace !important;
-            font-size: 20px !important;      /* Large enough to read */
-            line-height: 1.6 !important;
-            background: #0b1c2f !important;  /* Dark background, high contrast */
-            color: #e2e8f0 !important;
-            padding: 24px !important;
-            border-radius: 8px !important;
-            border: 1px solid #334155 !important;
-            white-space: pre-wrap !important; /* Wrap long lines */
-            word-wrap: break-word !important;
-            overflow: visible !important;
-            max-width: 100% !important;
-            margin: 20px 0 !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-        `;
-    });
-
-    // --- Also enlarge metrics / audit log text for consistency ---
-    const metricsEls = document.querySelectorAll('#hours-lost, #revenue-risk, #complexity-score, #logic-std, #logic-ai, #logic-risk');
-    metricsEls.forEach(el => {
-        if (el) el.style.fontSize = '32px';
-    });
-
-    const auditLogEl = document.getElementById('pdf-audit-log');
-    if (auditLogEl) {
-        auditLogEl.style.fontSize = '20px';
-        auditLogEl.style.lineHeight = '1.6';
-        auditLogEl.style.maxHeight = 'none';
-        auditLogEl.style.overflow = 'visible';
-    }
-
-    const actionsEl = document.getElementById('pdf-actions');
-    if (actionsEl) {
-        actionsEl.style.fontSize = '20px';
-        actionsEl.style.lineHeight = '1.6';
-    }
-
-    // --- Force reflow & wait for fonts ---
-    element.offsetHeight;
-    await document.fonts.ready;
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    await new Promise(resolve => setTimeout(resolve, 200)); // Extra time for heavy JSON
+    element.style.cssText = `display: block !important; visibility: visible !important; width: 1800px !important; background: white !important; font-size: 24px !important;`;
 
     try {
-        // Capture at 2x scale, full scroll height
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: true,
-            windowWidth: 1800,               // Must match element width
-            windowHeight: element.scrollHeight
-        });
-
-        console.log(`📸 Canvas height: ${canvas.height}px`); // Should be large (10,000+ px)
-
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true, windowWidth: 1800 });
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            unit: 'in',
-            format: 'letter',
-            orientation: 'portrait'
-        });
-
-        const pageWidth = pdf.internal.pageSize.getWidth();   // 8.5 in
-        const pageHeight = pdf.internal.pageSize.getHeight(); // 11 in
-        const margin = 0.3;                  // Slightly smaller margin = more content width
-        const contentWidth = pageWidth - margin * 2;
-        const contentHeight = pageHeight - margin * 2;
-
-        const pxToInch = contentWidth / canvas.width;        // ~0.0042 (1800px → 7.9in)
-        const maxCanvasHeight = contentHeight / pxToInch;
-
-        const totalPages = Math.ceil(canvas.height / maxCanvasHeight);
-        console.log(`📄 Total PDF pages: ${totalPages}`);
-
-        for (let page = 0; page < totalPages; page++) {
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = canvas.width;
-            pageCanvas.height = Math.min(maxCanvasHeight, canvas.height - page * maxCanvasHeight);
-            const ctx = pageCanvas.getContext('2d');
-
-            ctx.drawImage(
-                canvas,
-                0, page * maxCanvasHeight,
-                canvas.width, pageCanvas.height,
-                0, 0,
-                pageCanvas.width, pageCanvas.height
-            );
-
-            const imgData = pageCanvas.toDataURL('image/jpeg', 0.98);
-
-            if (page > 0) pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, pageCanvas.height * pxToInch);
-        }
-
-        pdf.save(`Diagnostic_Report_${(userInfo.name || 'client').replace(/\s+/g, '_')}.pdf`);
-        btn.innerText = '📥 Export Professional PDF Report';
-    } catch (err) {
-        console.error('PDF Generation Error:', err);
-        btn.innerText = 'Error: Try Again';
-    } finally {
-        // --- Restore everything ---
+        const pdf = new jsPDF('p', 'in', 'letter');
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        pdf.addImage(imgData, 'JPEG', 0.3, 0.3, 7.9, (canvas.height * 7.9) / canvas.width);
+        pdf.save(`Diagnostic_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) { console.error(err); } 
+    finally {
         element.setAttribute('style', originalElementStyle);
-        ancestors.forEach(a => {
-            a.el.style.display = a.display;
-            a.el.style.visibility = a.visibility;
-            a.el.style.overflow = a.overflow;
-            a.el.style.height = a.height;
-            a.el.style.maxHeight = a.maxHeight;
-        });
-        // Restore font overrides (optional)
-        preBlocks.forEach(pre => pre.style.cssText = '');
-        metricsEls.forEach(el => { if (el) el.style.fontSize = ''; });
-        if (auditLogEl) auditLogEl.style.fontSize = '';
-        if (actionsEl) actionsEl.style.fontSize = '';
         btn.disabled = false;
+        btn.innerText = '📥 Export Professional PDF Report';
     }
 }
