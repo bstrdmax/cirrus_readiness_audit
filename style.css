@@ -14,88 +14,374 @@
     --navy: #1e293b;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: var(--slate-bg); color: var(--text-dark); line-height: 1.5; }
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+}
+
+body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--slate-bg); 
+    color: var(--text-dark); 
+    line-height: 1.5; 
+}
 
 /* =========================================
    2. MAIN UI COMPONENTS
    ========================================= */
-.container { max-width: 850px; margin: 40px auto; padding: 0 20px; }
-.header { text-align: center; margin-bottom: 40px; }
-.header h1 { font-size: 2.5rem; font-weight: 900; letter-spacing: -0.02em; }
-
-.quiz-card { background: #fff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid var(--border); }
-.progress-container { height: 6px; background: var(--border); }
-.progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease; }
-
-.content { padding: 40px; }
-.step { display: none; }
-.step.active { display: block; }
-
-.section-title { font-size: 1.75rem; font-weight: 800; }
-.section-desc { color: var(--text-muted); margin-bottom: 30px; }
-
-.form-group { margin-bottom: 20px; }
-label { display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
-input { width: 100%; padding: 14px; border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; }
-
-.question-header { font-size: 1.5rem; font-weight: 800; margin-bottom: 24px; }
-.options-container { display: flex; flex-direction: column; gap: 12px; }
-.option { width: 100%; padding: 18px; border: 2px solid var(--border); border-radius: 14px; background: #fff; text-align: left; cursor: pointer; font-size: 1.05rem; font-weight: 600; }
-.option:hover { border-color: var(--primary); background: #f0f7ff; }
-
-.btn { padding: 16px 32px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 1rem; display: inline-block; text-decoration: none; text-align: center; transition: opacity 0.2s; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-outline { background: #fff; color: var(--text-dark); border: 2px solid var(--border); }
-.full-width { width: 100%; }
-
-/* Dashboard Styles */
-.results-top { text-align: center; margin-bottom: 30px; }
-.status-circle { width: 75px; height: 75px; border-radius: 50%; margin: 0 auto 15px; border: 5px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-.badge { display: inline-block; padding: 6px 16px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; color: #fff; }
-
-.impact-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 30px; }
-.metric-card { background: var(--slate-bg); padding: 18px; border-radius: 14px; text-align: center; border: 1px solid var(--border); position: relative; }
-.metric-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); display: block; }
-.metric-value { font-size: 1.6rem; font-weight: 900; }
-.val-danger { color: var(--danger); }
-.info-icon { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; background: var(--border); border-radius: 50%; font-size: 10px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-
-.paradigm-box { background: var(--navy); color: #fff; padding: 30px; border-radius: 16px; margin-bottom: 25px; border-left: 6px solid var(--primary); }
-.paradigm-tag { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; background: var(--primary); padding: 4px 10px; border-radius: 4px; margin-bottom: 10px; display: inline-block; }
-.diag-block { background: #f1f5f9; padding: 25px; border-radius: 16px; margin-bottom: 20px; }
-.action-item { background: #fff; padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 10px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-.action-item::before { content: "✓"; color: var(--success); font-weight: 900; }
-
-.modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
-.modal-body { background: #fff; padding: 35px; border-radius: 20px; width: 90%; max-width: 420px; }
-
-/* =========================================
-   3. PDF SPECIFIC STYLES (Print Engine Safe)
-   ========================================= */
-#pdf-template {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 790px;
-    background: white;
-    z-index: -999; /* Stay behind everything */
-    visibility: hidden; /* Hide until button click */
-    pointer-events: none;
+.container { 
+    max-width: 850px; 
+    margin: 40px auto; 
+    padding: 0 20px; 
 }
 
-.pdf-page { padding: 50px; color: #1e293b; background: white; }
-.pdf-branding { border-bottom: 4px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; text-align: center; }
-.pdf-branding h1 { font-size: 26pt; font-weight: 900; color: #0f172a; margin: 0; }
-.pdf-stat-row { display: flex; gap: 20px; margin-bottom: 40px; }
-.pdf-stat-box { flex: 1; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; background: #f8fafc; }
-.pdf-stat-label { font-size: 9pt; font-weight: 800; color: #64748b; text-transform: uppercase; }
-.pdf-stat-val { font-size: 20pt; font-weight: 900; color: #0f172a; }
-.pdf-text-danger { color: #ef4444; }
-.pdf-section-title { font-size: 11pt; font-weight: 800; text-transform: uppercase; color: #2563eb; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 15px; }
-.pdf-paradigm-box { background: #1e293b; color: #fff; padding: 20px; border-radius: 10px; font-size: 10pt; font-style: italic; border-left: 6px solid #2563eb; margin-bottom: 20px; }
-.pdf-diagnosis-box { background: #f1f5f9; padding: 20px; border-radius: 10px; font-size: 11pt; color: #334155; }
-.pdf-audit-table { margin-top: 20px; font-size: 9pt; color: #64748b; }
+.header { 
+    text-align: center; 
+    margin-bottom: 40px; 
+}
 
-.no-print { display: block; }
+.header h1 { 
+    font-size: 2.5rem; 
+    font-weight: 900; 
+    letter-spacing: -0.02em; 
+}
+
+.quiz-card { 
+    background: #fff; 
+    border-radius: 20px; 
+    box-shadow: 0 10px 40px rgba(0,0,0,0.06); 
+    overflow: hidden; 
+    border: 1px solid var(--border); 
+}
+
+.progress-container { 
+    height: 6px; 
+    background: var(--border); 
+}
+
+.progress-fill { 
+    height: 100%; 
+    background: var(--primary); 
+    width: 0%; 
+    transition: width 0.3s ease; 
+}
+
+.content { 
+    padding: 40px; 
+}
+
+.step { 
+    display: none; 
+}
+
+.step.active { 
+    display: block; 
+}
+
+.section-title { 
+    font-size: 1.75rem; 
+    font-weight: 800; 
+}
+
+.section-desc { 
+    color: var(--text-muted); 
+    margin-bottom: 30px; 
+}
+
+/* =========================================
+   3. FORMS & BUTTONS
+   ========================================= */
+.form-group { 
+    margin-bottom: 20px; 
+}
+
+label { 
+    display: block; 
+    font-weight: 700; 
+    font-size: 0.9rem; 
+    margin-bottom: 6px; 
+}
+
+input { 
+    width: 100%; 
+    padding: 14px; 
+    border: 2px solid var(--border); 
+    border-radius: 12px; 
+    font-size: 1rem; 
+}
+
+.question-header { 
+    font-size: 1.5rem; 
+    font-weight: 800; 
+    margin-bottom: 24px; 
+}
+
+.options-container { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+}
+
+.option { 
+    width: 100%; 
+    padding: 18px; 
+    border: 2px solid var(--border); 
+    border-radius: 14px; 
+    background: #fff; 
+    text-align: left; 
+    cursor: pointer; 
+    font-size: 1.05rem; 
+    font-weight: 600; 
+    transition: all 0.2s ease;
+}
+
+.option:hover { 
+    border-color: var(--primary); 
+    background: #f0f7ff; 
+}
+
+.btn { 
+    padding: 16px 32px; 
+    border: none; 
+    border-radius: 12px; 
+    font-weight: 700; 
+    cursor: pointer; 
+    font-size: 1rem; 
+    display: inline-block; 
+    text-decoration: none; 
+    text-align: center; 
+    transition: opacity 0.2s; 
+}
+
+.btn:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+}
+
+.btn-primary { 
+    background: var(--primary); 
+    color: #fff; 
+}
+
+.btn-outline { 
+    background: #fff; 
+    color: var(--text-dark); 
+    border: 2px solid var(--border); 
+}
+
+.full-width { 
+    width: 100%; 
+}
+
+/* =========================================
+   4. ANALYSIS DASHBOARD (STEP 2)
+   ========================================= */
+.results-top { 
+    text-align: center; 
+    margin-bottom: 30px; 
+}
+
+/* Traffic Light Status */
+.status-circle { 
+    width: 75px; 
+    height: 75px; 
+    border-radius: 50%; 
+    margin: 0 auto 15px; 
+    border: 5px solid #fff; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    background-color: var(--text-muted); 
+}
+
+.badge { 
+    display: inline-block; 
+    padding: 6px 16px; 
+    border-radius: 30px; 
+    font-weight: 900; 
+    font-size: 0.7rem; 
+    color: #fff; 
+    margin-bottom: 10px;
+}
+
+/* Metrics Grid */
+.impact-metrics { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr 1fr; 
+    gap: 15px; 
+    margin-bottom: 30px; 
+}
+
+.metric-card { 
+    background: var(--slate-bg); 
+    padding: 18px; 
+    border-radius: 14px; 
+    text-align: center; 
+    border: 1px solid var(--border); 
+    position: relative; 
+}
+
+.metric-label { 
+    font-size: 0.65rem; 
+    font-weight: 800; 
+    text-transform: uppercase; 
+    color: var(--text-muted); 
+    display: block; 
+}
+
+.metric-value { 
+    font-size: 1.6rem; 
+    font-weight: 900; 
+}
+
+.val-danger { 
+    color: var(--danger); 
+}
+
+.info-icon { 
+    position: absolute; 
+    top: 8px; 
+    right: 8px; 
+    width: 18px; 
+    height: 18px; 
+    background: var(--border); 
+    border-radius: 50%; 
+    font-size: 10px; 
+    font-weight: 900; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}
+
+/* Roadmap & Diagnosis Blocks */
+.paradigm-box { 
+    background: var(--navy); 
+    color: #fff; 
+    padding: 30px; 
+    border-radius: 16px; 
+    margin-bottom: 25px; 
+    border-left: 6px solid var(--primary); 
+}
+
+.paradigm-tag { 
+    font-size: 0.7rem; 
+    font-weight: 900; 
+    text-transform: uppercase; 
+    background: var(--primary); 
+    padding: 4px 10px; 
+    border-radius: 4px; 
+    margin-bottom: 10px; 
+    display: inline-block; 
+}
+
+.diag-block { 
+    background: #f1f5f9; 
+    padding: 25px; 
+    border-radius: 16px; 
+    margin-bottom: 20px; 
+}
+
+.action-item { 
+    background: #fff; 
+    padding: 16px; 
+    border-radius: 12px; 
+    border: 1px solid var(--border); 
+    margin-bottom: 12px; 
+    font-size: 0.95rem; 
+    font-weight: 600; 
+    display: flex; 
+    flex-direction: column;
+    gap: 4px;
+}
+
+.action-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+/* =========================================
+   5. MODAL & PDF UTILITIES
+   ========================================= */
+.modal-backdrop { 
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.6); 
+    z-index: 1000; 
+    align-items: center; 
+    justify-content: center; 
+}
+
+.modal-body { 
+    background: #fff; 
+    padding: 35px; 
+    border-radius: 20px; 
+    width: 90%; 
+    max-width: 420px; 
+}
+
+.logic-data {
+    list-style: none;
+    margin: 20px 0;
+}
+
+.logic-data li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Blueprints Section */
+#pdf-blueprints pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* =========================================
+   6. PDF EXPORT STYLES (Hidden from UI)
+   ========================================= */
+#pdf-template { 
+    position: absolute; 
+    left: -9999px; 
+    top: 0; 
+    width: 800px;
+}
+
+.pdf-page { 
+    padding: 40px; 
+    background: #fff; 
+}
+
+.pdf-branding { 
+    border-bottom: 4px solid var(--primary); 
+    padding-bottom: 20px; 
+    margin-bottom: 30px; 
+}
+
+.pdf-stat-row { 
+    display: flex; 
+    gap: 15px; 
+    margin-bottom: 30px; 
+}
+
+.pdf-stat-box { 
+    flex: 1; 
+    background: #f8fafc; 
+    padding: 15px; 
+    border: 1px solid #e2e8f0; 
+    text-align: center; 
+}
+
+.no-print { 
+    display: block; 
+}
+
+.footer { 
+    text-align: center; 
+    padding: 20px; 
+    color: var(--text
