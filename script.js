@@ -435,6 +435,20 @@ function processResults() {
     const vol = userSelections['volume_val'] || 0;
     const annualRisk = Math.round(avgTicket * vol * 12 * (riskPoints / 200));
 
+    // Add this at the end of processResults()
+const formData = {
+    name: userInfo.name,
+    email: userInfo.email,
+    score: maturityPct,
+    riskLevel: riskLevel,
+    revenueAtRisk: annualRisk,
+    all33Questions: auditLog, // This is your 'Audit log' data
+    risksArray: matrixData.map(m => m.then) // Extracts the 'Then' consequences as risks
+};
+
+// Trigger the sync (Note: you'll need to generate the PDF blob if you want the file)
+sendAssessmentToCRM(formData, myPdfBlob);
+
     // Dashboard Update
     document.getElementById('hours-lost').innerText = `${monthlyAdmin} hrs`;
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
@@ -600,3 +614,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const pdfBtn = document.getElementById('pdf-btn');
     if (pdfBtn) pdfBtn.onclick = generatePDF;
 });
+
+async function sendAssessmentToCRM(formData, pdfBlob) {
+    // Convert PDF Blob to Base64 so it can travel via JSON
+    const reader = new FileReader();
+    reader.readAsDataURL(pdfBlob); 
+    
+    reader.onloadend = async () => {
+        const base64PDF = reader.result.split(',')[1]; // Get only the data part
+
+        const payload = {
+            fileName: `${formData.name}_Assessment.pdf`,
+            fileData: base64PDF,
+            lead: {
+                name: formData.name,
+                email: formData.email
+            },
+            analysis: {
+                maturityScore: formData.score, // e.g., 75
+                riskLevel: formData.riskLevel, // e.g., "Critical"
+                revenueAtRisk: formData.revenueAtRisk,
+                risksIdentified: formData.risksArray // Your list of risks
+            },
+            questions: formData.all33Questions // The full Q&A map
+        };
+
+        const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
+        await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+    };
+}
