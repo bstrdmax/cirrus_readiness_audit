@@ -89,12 +89,19 @@ async function processResults() {
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = risk;
 
-    // Build PDF template in DOM
-    setupPdfTemplate(maturity, risk, annualRisk);
+    // Generate recommendations and root cause
+    const recommendations = getRecommendations();
+    const rootCause = getRootCause();
 
-    // Wait for layout and fonts, then generate PDF and sync
+    // Update HTML results with recommendations
+    displayRecommendations(recommendations);
+    document.getElementById('diag-text').innerText = rootCause.summary;
+
+    // Build PDF template with all sections
+    setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause);
+
+    // Allow time for rendering, then generate PDF and sync
     try {
-        // Allow time for rendering
         await new Promise(resolve => setTimeout(resolve, 500));
         const pdfBlob = await generatePDF(true); // silent generation
         if (pdfBlob) {
@@ -105,16 +112,67 @@ async function processResults() {
                 score: maturity,
                 risk: risk,
                 revAtRisk: annualRisk,
-                logs: auditLog
+                logs: auditLog,
+                recommendations: recommendations,
+                rootCause: rootCause
             }, pdfBlob);
         }
     } catch (err) {
         console.error("Post-result processing failed:", err);
-        // Optionally show user a message, but don't break UI
     }
 }
 
-function setupPdfTemplate(maturity, risk, annualRisk) {
+/** * Generate critical recommendations from auditLog (score <= 3 and has meaningful rec) */
+function getRecommendations() {
+    return auditLog
+        .filter(item => item.score <= 3 && item.rec && item.rec !== "Maintain current standard.")
+        .sort((a, b) => a.score - b.score) // most critical first
+        .slice(0, 10); // limit to top 10
+}
+
+/** * Calculate average score per category and identify weakest area */
+function getRootCause() {
+    const categoryScores = {};
+    auditLog.forEach(item => {
+        if (!categoryScores[item.category]) {
+            categoryScores[item.category] = { total: 0, count: 0 };
+        }
+        categoryScores[item.category].total += item.score;
+        categoryScores[item.category].count += 1;
+    });
+
+    let lowestCategory = null;
+    let lowestAvg = Infinity;
+    for (const [cat, data] of Object.entries(categoryScores)) {
+        const avg = data.total / data.count;
+        if (avg < lowestAvg) {
+            lowestAvg = avg;
+            lowestCategory = cat;
+        }
+    }
+
+    const summary = `Your lowest performing area is **${lowestCategory}** with an average score of ${lowestAvg.toFixed(1)}/5. Focus here first.`;
+    return { lowestCategory, lowestAvg, summary };
+}
+
+/** * Populate the HTML next-steps container */
+function displayRecommendations(recommendations) {
+    const container = document.getElementById('next-steps-container');
+    container.innerHTML = '';
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="action-item">No critical actions identified – you’re doing great!</div>';
+        return;
+    }
+    recommendations.forEach(rec => {
+        const div = document.createElement('div');
+        div.className = 'action-item';
+        div.innerText = rec.rec;
+        container.appendChild(div);
+    });
+}
+
+/** * Build the hidden PDF template with summary, root cause, next steps, and audit detail */
+function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause) {
     const template = document.getElementById('pdf-template');
     template.innerHTML = '';
 
@@ -136,7 +194,21 @@ function setupPdfTemplate(maturity, risk, annualRisk) {
     `;
     template.appendChild(p1);
 
-    // Page 2+: Questions (Chunked 11 per page)
+    // Page 2: Root Cause & Next Steps
+    const p2 = createPageDiv();
+    p2.innerHTML = `
+        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px;">Root Cause Analysis</h2>
+        <p style="font-size:16px; margin:20px 0;">${rootCause.summary}</p>
+        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px; margin-top:30px;">Critical Action Items</h2>
+        ${recommendations.length ? recommendations.map(rec => `
+            <div style="margin-bottom:15px; padding:10px; background:#f8fafc; border-left:4px solid #ef4444;">
+                <strong>${rec.category}</strong>: ${rec.rec}
+            </div>
+        `).join('') : '<p>No critical actions – your processes are strong!</p>'}
+    `;
+    template.appendChild(p2);
+
+    // Page 3+: Audit Detail (Chunked 11 per page)
     const chunks = chunkArray(auditLog, 11);
     chunks.forEach((chunk, i) => {
         const p = createPageDiv();
@@ -175,11 +247,9 @@ async function generatePDF(isAutoSend = false) {
         width:800px !important;
         background:white !important;
     `;
-    // Force layout recalc
-    template.offsetHeight;
+    template.offsetHeight; // Force layout
 
     await document.fonts.ready;
-    // Short delay to ensure fonts apply
     await new Promise(resolve => requestAnimationFrame(resolve));
 
     try {
@@ -187,23 +257,13 @@ async function generatePDF(isAutoSend = false) {
         const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
 
         for (let i = 0; i < pages.length; i++) {
-            // Add a timeout to html2canvas to prevent hanging
             const canvas = await Promise.race([
-                html2canvas(pages[i], {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    allowTaint: false,
-                }),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('html2canvas timeout')), 15000)
-                )
+                html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('html2canvas timeout')), 15000))
             ]);
 
             if (i > 0) pdf.addPage();
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
-            // Calculate height proportionally (page width 7.7in)
             const pageHeightInches = (pages[i].offsetHeight / 800) * 7.7;
             pdf.addImage(imgData, 'JPEG', 0.4, 0.4, 7.7, pageHeightInches);
         }
@@ -225,12 +285,11 @@ async function generatePDF(isAutoSend = false) {
         }
         return null;
     } finally {
-        // Restore template visibility
         template.style.display = originalDisplay;
     }
 }
 
-/** * CRM WEBHOOK SYNC (using FormData for reliable file upload) */
+/** * CRM WEBHOOK SYNC (using FormData) */
 async function sendToWebhook(data, pdfBlob) {
     const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
 
@@ -242,21 +301,16 @@ async function sendToWebhook(data, pdfBlob) {
     formData.append('riskLevel', data.risk);
     formData.append('revenueAtRisk', data.revAtRisk);
     formData.append('auditLog', JSON.stringify(data.logs));
+    formData.append('recommendations', JSON.stringify(data.recommendations));
+    formData.append('rootCause', JSON.stringify(data.rootCause));
     formData.append('file', pdfBlob, `Report_${data.name}.pdf`);
 
     try {
-        const response = await fetch(WEBHOOK_URL, {
-            method: 'POST',
-            body: formData
-            // Do NOT set Content-Type header; browser sets it with boundary
-        });
-        if (!response.ok) {
-            throw new Error(`Webhook responded with ${response.status}`);
-        }
+        const response = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+        if (!response.ok) throw new Error(`Webhook responded with ${response.status}`);
         console.log("CRM: Sync Complete.");
     } catch (err) {
         console.error("Webhook delivery failed:", err);
-        // Non-critical; don't disrupt user
     }
 }
 
