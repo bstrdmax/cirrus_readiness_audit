@@ -1,6 +1,6 @@
 /**
  * CIRRUS AUTOMATIONS - STRATEGIC DIAGNOSTIC ENGINE
- * Version: 7.0 (Zero-Truncation Multipage Engine - FIXED)
+ * Version: 7.0 (Zero-Truncation Multipage Engine - Full CRM Integration)
  */
 
 const questions = [
@@ -336,13 +336,14 @@ const questions = [
     }
 ];
 
+// STATE MANAGEMENT
 let currentStep = 0;
 let totalScore = 0;
 let auditLog = [];
 let userSelections = {};
 let userInfo = { name: "", email: "" };
 
-/** * INIT & NAVIGATION
+/** * NAVIGATION LOGIC 
  */
 function startQuiz() {
     userInfo.name = document.getElementById('name').value.trim();
@@ -358,10 +359,14 @@ function startQuiz() {
 
 function renderQuestion() {
     const q = questions[currentStep];
-    if (!q) { processResults(); return; }
+    if (!q) { 
+        processResults(); 
+        return; 
+    }
     
     document.getElementById('q-counter').innerText = `QUESTION ${currentStep + 1} OF ${questions.length}`;
     document.getElementById('q-text').innerText = q.text;
+    
     const container = document.getElementById('options');
     container.innerHTML = '';
     
@@ -373,48 +378,71 @@ function renderQuestion() {
         container.appendChild(btn);
     });
     
-    document.getElementById('progress').style.width = (currentStep / questions.length * 100) + '%';
+    const pct = (currentStep / questions.length) * 100;
+    document.getElementById('progress').style.width = pct + '%';
 }
 
 function selectOption(id, qText, opt, cat) {
     totalScore += opt.score;
     userSelections[id] = opt.score;
     if (opt.val !== undefined) userSelections[id + "_val"] = opt.val;
-    auditLog.push({ q: qText, a: opt.text, category: cat, score: opt.score, rec: opt.rec });
+    
+    auditLog.push({ 
+        q: qText, 
+        a: opt.text, 
+        category: cat, 
+        score: opt.score, 
+        rec: opt.rec || "Maintain current standard."
+    });
+    
     currentStep++;
     renderQuestion();
 }
 
-/** * ANALYSIS & CRM DISPATCH 
+/** * ANALYSIS ENGINE 
  */
 async function processResults() {
-    // UI Update
     document.getElementById('step1').classList.remove('active');
     document.getElementById('step2').classList.add('active');
     document.getElementById('progress').style.width = '100%';
 
     const maxScore = questions.length * 5;
     const maturityPct = Math.round((totalScore / maxScore) * 100);
-    
+
     let riskPoints = 0;
     let matrixData = [];
 
-    // Calculated Risk Logic
-    if ((userSelections['admin_val'] || 0) >= 15) { riskPoints += 40; matrixData.push({ if: "Weekly admin load 15+ hours", then: "Scale ceiling reached.", root: "Manual handling.", control: "Automate orchestration." }); }
-    if (userSelections['backup'] <= 1) { riskPoints += 40; matrixData.push({ if: "No cloud backup", then: "Data loss imminent.", root: "Manual versioning.", control: "Automate replication." }); }
-    
+    // IF-THEN RISK LOGIC
+    if ((userSelections['admin_val'] || 0) >= 15) {
+        riskPoints += 40;
+        matrixData.push({ if: "Weekly admin load exceeds 15+ hours", then: "Scale ceiling reached.", root: "Manual handling.", control: "Task orchestration." });
+    }
+    if (userSelections['backup'] <= 1) {
+        riskPoints += 40;
+        matrixData.push({ if: "No automated backup", then: "Data loss risk.", root: "Manual reliance.", control: "Auto-replication." });
+    }
+    if (userSelections['leads'] <= 1) {
+        riskPoints += 20;
+        matrixData.push({ if: "Manual lead processing", then: "Leakage risk.", root: "High latency.", control: "Webhook triage." });
+    }
+
     let riskLevel = "Low";
-    if (riskPoints >= 70 || maturityPct < 45) riskLevel = "Critical";
-    else if (riskPoints >= 30 || maturityPct < 75) riskLevel = "Medium";
+    let color = "#10b981";
+    if (riskPoints >= 70 || maturityPct < 45) { riskLevel = "Critical"; color = "#ef4444"; }
+    else if (riskPoints >= 30 || maturityPct < 75) { riskLevel = "Medium"; color = "#f59e0b"; }
 
     const annualRisk = Math.round((userSelections['ticket_val'] || 0) * (userSelections['volume_val'] || 0) * 12 * (riskPoints / 200));
 
-    // Update Dashboard UI
+    // UI UPDATES
     document.getElementById('hours-lost').innerText = `${(userSelections['admin_val'] || 0) * 4} hrs`;
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = riskLevel;
+    document.getElementById('traffic-light').style.backgroundColor = color;
 
-    // PREPARE CRM DATA
+    // BUILD PDF TEMPLATE
+    setupPdfTemplate(maturityPct, (userSelections['admin_val'] || 0) * 4, annualRisk, riskLevel, color, matrixData);
+
+    // AUTO-TRIGGER CRM SYNC
     const formData = {
         name: userInfo.name,
         email: userInfo.email,
@@ -425,23 +453,18 @@ async function processResults() {
         risksArray: matrixData.map(m => m.then)
     };
 
-    // 1. Build the PDF pages in the hidden div
-    setupPdfTemplate(maturityPct, (userSelections['admin_val'] || 0) * 4, annualRisk, riskLevel, "#2563eb", matrixData);
-
-    // 2. Trigger PDF & Webhook (Timeout ensures DOM is painted)
+    // Delay ensures DOM renders the template before the canvas captures it
     setTimeout(async () => {
         try {
-            const pdfBlob = await generatePDF(true); // 'true' = don't download, just return blob
+            const pdfBlob = await generatePDF(true); 
             if (pdfBlob) {
                 await sendAssessmentToCRM(formData, pdfBlob);
             }
-        } catch (err) {
-            console.error("Critical Sync Error:", err);
-        }
+        } catch (e) { console.error("Auto-sync failed", e); }
     }, 1500);
 }
 
-/** * PDF ENGINE (HTML2CANVAS + JSPDF)
+/** * PDF GENERATOR 
  */
 async function generatePDF(silent = false) {
     const btn = document.getElementById('pdf-btn');
@@ -449,7 +472,8 @@ async function generatePDF(silent = false) {
     const pages = template.querySelectorAll('.pdf-page-chunk');
     
     if (!pages.length) return null;
-    if (!silent) { btn.disabled = true; btn.innerText = 'Compiling...'; }
+    if (!silent) { btn.disabled = true; btn.innerText = 'Generating High-Fidelity PDF...'; }
+    
     template.style.display = 'block';
 
     try {
@@ -465,12 +489,12 @@ async function generatePDF(silent = false) {
 
         const blob = pdf.output('blob');
         if (!silent) {
-            pdf.save(`Assessment_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
-            btn.innerText = '📥 Export PDF';
+            pdf.save(`Cirrus_Report_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
+            btn.innerText = '📥 Export Professional PDF Report';
         }
         return blob;
     } catch (err) {
-        console.error("PDF Gen Failed:", err);
+        console.error(err);
         return null;
     } finally {
         template.style.display = 'none';
@@ -478,7 +502,7 @@ async function generatePDF(silent = false) {
     }
 }
 
-/** * WEBHOOK DISPATCHER 
+/** * WEBHOOK SYNC 
  */
 async function sendAssessmentToCRM(formData, pdfBlob) {
     const reader = new FileReader();
@@ -490,7 +514,12 @@ async function sendAssessmentToCRM(formData, pdfBlob) {
             fileName: `${formData.name}_Assessment.pdf`,
             fileData: base64PDF,
             lead: { name: formData.name, email: formData.email },
-            analysis: formData,
+            analysis: {
+                maturityScore: formData.score,
+                riskLevel: formData.riskLevel,
+                revenueAtRisk: formData.revenueAtRisk,
+                risksIdentified: formData.risksArray
+            },
             questions: formData.all33Questions
         };
 
@@ -500,10 +529,47 @@ async function sendAssessmentToCRM(formData, pdfBlob) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
+        console.log("CRM Synced Successfully.");
     };
 }
 
-// Support Functions (Template Builders & Listeners)
+/** * PDF TEMPLATE BUILDER (CHUNKED) 
+ */
+function setupPdfTemplate(maturity, hours, risk, status, color, matrix) {
+    const template = document.getElementById('pdf-template');
+    template.innerHTML = ''; 
+
+    // Page 1
+    const p1 = createPageDiv();
+    p1.innerHTML = `
+        <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px;">
+            <h1>Cirrus Automation Readiness Report</h1>
+        </div>
+        <div style="background: ${color}; color: white; padding: 20px; border-radius: 10px; text-align: center;">
+            <h2>STATUS: ${status}</h2>
+        </div>
+        <div style="margin-top: 30px; font-size: 18px;">
+            <p><strong>Maturity:</strong> ${maturity}%</p>
+            <p><strong>Revenue at Risk:</strong> $${risk.toLocaleString()}</p>
+        </div>
+    `;
+    template.appendChild(p1);
+
+    // Audit Log Pages (10 Qs per page)
+    const auditChunks = chunkArray(auditLog, 10);
+    auditChunks.forEach((chunk, i) => {
+        const p = createPageDiv();
+        p.innerHTML = `<h3>Audit Log - Part ${i+1}</h3>` + chunk.map(item => `
+            <div style="margin-bottom: 15px; border-bottom: 1px solid #eee;">
+                <p style="font-size: 12px;"><strong>Q: ${item.q}</strong></p>
+                <p style="font-size: 11px; color: #555;">A: ${item.a} (Score: ${item.score}/5)</p>
+            </div>
+        `).join('');
+        template.appendChild(p);
+    });
+}
+
+// HELPERS
 function createPageDiv() {
     const div = document.createElement('div');
     div.className = 'pdf-page-chunk';
@@ -512,15 +578,13 @@ function createPageDiv() {
     return div;
 }
 
-function setupPdfTemplate(maturity, hours, risk, status, color, matrix) {
-    const template = document.getElementById('pdf-template');
-    template.innerHTML = ''; 
-    const page1 = createPageDiv();
-    page1.innerHTML = `<h1 style="color:${color}">Cirrus Infrastructure Report</h1><p>Client: ${userInfo.name}</p><p>Maturity: ${maturity}%</p>`;
-    template.appendChild(page1);
+function chunkArray(arr, size) {
+    const res = [];
+    for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+    return res;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const pdfBtn = document.getElementById('pdf-btn');
-    if (pdfBtn) pdfBtn.onclick = () => generatePDF(false);
+    const btn = document.getElementById('pdf-btn');
+    if (btn) btn.onclick = () => generatePDF(false);
 });
