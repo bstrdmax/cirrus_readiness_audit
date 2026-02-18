@@ -7,59 +7,98 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
 
     <div class="container">
-        <header>
-            <img src="https://via.placeholder.com/150x50?text=CIRRUS+LOGO" alt="Cirrus Automation" id="logo">
+        <header class="header">
+            <div class="logo-wrapper">
+                <div class="logo-placeholder">CIRRUS</div>
+            </div>
             <h1>Automation Readiness Tool</h1>
-            <p>Determine your business level: Red, Yellow, or Green.</p>
+            <p>Strategic diagnostic for business infrastructure maturity.</p>
         </header>
 
-        <main id="quiz-container">
-            <div id="user-onboarding">
-                <input type="text" id="user-name" placeholder="Enter your full name">
-                <input type="email" id="user-email" placeholder="Enter your work email">
-                <button id="start-btn" onclick="startDiagnostic()">Analyze My Business</button>
+        <main id="app-container">
+            <!-- STEP 1: Onboarding -->
+            <div id="step0" class="view active">
+                <div class="quiz-card">
+                    <div class="content">
+                        <h2 class="section-title">Analyze Your Business</h2>
+                        <p class="section-desc">Enter your details to begin the professional diagnostic assessment.</p>
+                        <div class="form-group">
+                            <label for="name">Full Name</label>
+                            <input type="text" id="name" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Work Email</label>
+                            <input type="email" id="email" placeholder="e.g. john@company.com">
+                        </div>
+                        <button id="start-btn" class="btn btn-primary full-width" onclick="startQuiz()">Begin Assessment</button>
+                    </div>
+                </div>
             </div>
 
-            <div id="results-area" style="display:none;">
-                <div class="status-card">
-                    <h2 id="display-name"></h2>
-                    <div id="color-badge"></div>
-                    <p id="level-description"></p>
+            <!-- STEP 2: Quiz -->
+            <div id="step1" class="view">
+                <div class="quiz-card">
+                    <div class="progress-container">
+                        <div id="progress" class="progress-fill"></div>
+                    </div>
+                    <div class="content">
+                        <div id="question-container">
+                            <div id="q-counter" style="font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 0.05em;">QUESTION 1 OF 33</div>
+                            <h2 id="q-text" class="question-header"></h2>
+                            <div id="options" class="options-container"></div>
+                        </div>
+                    </div>
                 </div>
-                <button id="pdf-btn">📥 Export Professional PDF Report</button>
+            </div>
+
+            <!-- STEP 3: Results -->
+            <div id="step2" class="view">
+                <div class="results-top">
+                    <div id="traffic-light" class="status-circle"></div>
+                    <span id="status-badge" class="badge">ANALYSIS COMPLETE</span>
+                    <h2 id="result-title" style="margin-top: 10px; font-weight: 800;"></h2>
+                </div>
+
+                <div class="impact-metrics">
+                    <div class="metric-card">
+                        <span class="metric-label">Monthly Hours Lost</span>
+                        <div id="hours-lost" class="metric-value">0 hrs</div>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Revenue at Risk</span>
+                        <div id="revenue-risk" class="metric-value">$0</div>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Risk Profile</span>
+                        <div id="risk-rating" class="metric-value">Low</div>
+                    </div>
+                </div>
+
+                <div class="paradigm-box">
+                    <span class="paradigm-tag">Diagnostic Insight</span>
+                    <p id="diag-text"></p>
+                </div>
+
+                <div class="diag-block">
+                    <h3 style="margin-bottom: 15px;">Critical Action Items</h3>
+                    <div id="next-steps-container"></div>
+                </div>
+
+                <button id="pdf-btn" class="btn btn-primary full-width">📥 Export Professional PDF Report</button>
+                <button class="btn btn-outline full-width" style="margin-top: 10px;" onclick="location.reload()">Restart Analysis</button>
             </div>
         </main>
     </div>
 
-    <div id="pdf-template" style="display: none; width: 800px; padding: 50px; background: white; font-family: sans-serif;">
-        <div style="border: 2px solid #333; padding: 40px; position: relative;">
-            <div style="text-align: right; color: #7f8c8d; font-size: 12px;">OFFICIAL DIAGNOSTIC REPORT</div>
-            <h1 style="color: #2c3e50; font-size: 32px; margin-bottom: 10px;">Cirrus Automation</h1>
-            <p style="color: #3498db; font-weight: bold; margin-bottom: 40px;">Business Infrastructure Analysis</p>
-            
-            <div style="margin-bottom: 30px;">
-                <label style="font-size: 12px; color: #95a5a6; display: block; text-transform: uppercase;">Client Name</label>
-                <span id="pdf-client-name" style="font-size: 20px; font-weight: bold;"></span>
-            </div>
+    <!-- The PDF template is now a hidden container that will be populated with "Page" divs via JS -->
+    <div id="pdf-template" style="display: none; position: absolute; left: -9999px;"></div>
 
-            <div id="pdf-color-section" style="padding: 20px; border-radius: 8px; color: white; margin-bottom: 30px;">
-                <h2 id="pdf-level-title" style="margin: 0;"></h2>
-            </div>
-
-            <div style="line-height: 1.6; color: #2c3e50;">
-                <h3>Next Steps for Your Level:</h3>
-                <p id="pdf-next-steps"></p>
-            </div>
-
-            <div style="margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #bdc3c7; text-align: center;">
-                © 2026 Cirrus Automation | Reputation. Cash. Lead Gen.
-            </div>
-        </div>
-    </div>
     <script src="script.js"></script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
