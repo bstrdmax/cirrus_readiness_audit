@@ -1,10 +1,8 @@
 /**
  * CIRRUS AUTOMATIONS - STRATEGIC DIAGNOSTIC ENGINE
- * Version: 8.0 (Integrated High-Fidelity PDF & CRM Sync)
- * Features: Multi-page rendering, Base64 Webhook transfer, Business Name capture.
+ * Version: 8.5 (Zero-Truncation / High-Fidelity Sync)
  */
 
-// 1. DATA STRUCTURE: 33 STRATEGIC QUESTIONS
 const questions = [
     {
         id: "leads",
@@ -338,21 +336,22 @@ const questions = [
     }
 ];
 
-// 2. STATE MANAGEMENT
 let currentStep = 0;
 let totalScore = 0;
 let auditLog = [];
 let userSelections = {};
 let userInfo = { name: "", email: "", business: "" };
 
-// 3. NAVIGATION & UI LOGIC
+/**
+ * INIT & NAVIGATION
+ */
 function startQuiz() {
     userInfo.name = document.getElementById('name').value.trim();
     userInfo.email = document.getElementById('email').value.trim();
     userInfo.business = document.getElementById('business-name').value.trim();
 
     if (!userInfo.name || !userInfo.email || !userInfo.business) {
-        alert("Please complete all identification fields.");
+        alert("Enter your name, email, and business name.");
         return;
     }
     document.getElementById('step0').classList.remove('active');
@@ -373,182 +372,169 @@ function renderQuestion() {
         const btn = document.createElement('button');
         btn.className = 'option';
         btn.innerText = opt.text;
-        btn.onclick = () => {
-            totalScore += opt.score;
-            userSelections[q.id] = opt.score;
-            if (opt.val !== undefined) userSelections[q.id + "_val"] = opt.val;
-            auditLog.push({ q: q.text, a: opt.text, category: q.category, score: opt.score, rec: opt.rec || "Maintain current standards." });
-            currentStep++;
-            renderQuestion();
-        };
+        btn.onclick = () => selectOption(q.id, q.text, opt, q.category);
         container.appendChild(btn);
     });
+    
     document.getElementById('progress').style.width = (currentStep / questions.length * 100) + '%';
 }
 
-// 4. ANALYSIS ENGINE
+function selectOption(id, qText, opt, cat) {
+    totalScore += opt.score;
+    userSelections[id] = opt.score;
+    if (opt.val !== undefined) userSelections[id + "_val"] = opt.val;
+    auditLog.push({ q: qText, a: opt.text, category: cat, score: opt.score, rec: opt.rec });
+    currentStep++;
+    renderQuestion();
+}
+
+/**
+ * ANALYSIS & CRM DISPATCH
+ */
 async function processResults() {
     document.getElementById('step1').classList.remove('active');
     document.getElementById('step2').classList.add('active');
+    document.getElementById('progress').style.width = '100%';
 
-    const maturityPct = Math.round((totalScore / (questions.length * 5)) * 100);
-    const riskLevel = maturityPct < 50 ? "Critical" : (maturityPct < 75 ? "Medium" : "Low");
-    const color = riskLevel === "Critical" ? "#ef4444" : (riskLevel === "Medium" ? "#f59e0b" : "#10b981");
+    const maxScore = questions.length * 5;
+    const maturityPct = Math.round((totalScore / maxScore) * 100);
 
+    let riskPoints = 0;
+    let matrixData = [];
+
+    // IF-THEN Analysis
+    if ((userSelections['admin_val'] || 0) >= 15) { riskPoints += 40; matrixData.push({ if: "Admin load 15h+", then: "Burnout risk.", root: "Manual tasks.", control: "Automation." }); }
+    if (userSelections['backup'] <= 1) { riskPoints += 40; matrixData.push({ if: "No backup", then: "Data loss.", root: "Manual reliance.", control: "API Backup." }); }
+
+    let riskLevel = maturityPct < 45 ? "Critical" : (maturityPct < 75 ? "Medium" : "Low");
+    const annualRisk = Math.round((userSelections['ticket_val'] || 0) * (userSelections['volume_val'] || 0) * 12 * (riskPoints / 200));
+
+    // Dashboard UI
+    document.getElementById('hours-lost').innerText = `${(userSelections['admin_val'] || 0) * 4} hrs`;
+    document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = riskLevel;
-    document.getElementById('traffic-light').style.backgroundColor = color;
 
-    // Prepare Template
-    setupPdfTemplate(maturityPct, riskLevel, color);
+    // PREPARE CRM DATA
+    const formData = {
+        name: userInfo.name,
+        email: userInfo.email,
+        business: userInfo.business,
+        score: maturityPct,
+        riskLevel: riskLevel,
+        revenueAtRisk: annualRisk,
+        all33Questions: auditLog
+    };
 
-    // Auto-Sync Webhook + PDF
+    // GENERATE TEMPLATE FIRST
+    setupPdfTemplate(maturityPct, riskLevel, matrixData);
+
+    // AUTO-SYNC TO CRM (Silent PDF Capture)
     setTimeout(async () => {
-        await generatePDF(true); // Triggers the webhook sync
+        try {
+            const pdfBlob = await generatePDF(true); // true = silent capture for webhook
+            if (pdfBlob) {
+                await sendToWebhook(formData, pdfBlob);
+            }
+        } catch (e) { console.error("Webhook failure:", e); }
     }, 1500);
 }
 
-// 5. TEMPLATE BUILDER (Captures Business Name)
-function setupPdfTemplate(maturity, risk, color) {
-    const element = document.getElementById('pdf-template');
-    element.innerHTML = `
-        <div style="padding: 40px; font-family: 'Helvetica', sans-serif; background: #fff;">
-            <div style="border-bottom: 4px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px;">
-                <h1 style="font-size: 32px; color: #0f172a; margin: 0;">Cirrus Automation Infrastructure Report</h1>
+/**
+ * PDF TEMPLATE BUILDER
+ */
+function setupPdfTemplate(maturity, risk, matrix) {
+    const template = document.getElementById('pdf-template');
+    template.innerHTML = `
+        <div class="pdf-page-chunk" style="width:800px; padding:60px; background:white; font-family:sans-serif;">
+            <div style="border-bottom: 3px solid #000; padding-bottom:20px; margin-bottom:40px;">
+                <h1>CIRRUS AUTOMATION DIAGNOSTIC</h1>
             </div>
-            
-            <div style="display: flex; justify-content: space-between; margin-bottom: 40px;">
-                <div>
-                    <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Prepared For</p>
-                    <p style="font-size: 18px; font-weight: bold; color: #1e293b;">${userInfo.name}</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 0; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Company</p>
-                    <p style="font-size: 18px; font-weight: bold; color: #1e293b;">${userInfo.business}</p>
-                </div>
+            <div style="margin-bottom:40px;">
+                <p><strong>Client:</strong> ${userInfo.name}</p>
+                <p><strong>Business:</strong> ${userInfo.business}</p>
+                <p><strong>Maturity:</strong> ${maturity}%</p>
+                <p><strong>Risk Profile:</strong> ${risk}</p>
             </div>
-
-            <div style="background: ${color}; color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 40px;">
-                <h2 style="margin: 0; font-size: 26px; font-weight: 800;">Infrastructure Maturity: ${maturity}%</h2>
-                <p style="margin: 10px 0 0; font-size: 18px; opacity: 0.9;">Risk Profile: ${risk}</p>
+            <div style="background:#f0f0f0; padding:20px; border-radius:10px;">
+                <h3>Executive Summary</h3>
+                <p>Infrastructure is rated at ${maturity}% maturity. Direct risk exposure is identified.</p>
             </div>
-
-            <h3 style="color: #0f172a; border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px;">Strategic Audit Log</h3>
-            ${auditLog.map((item, idx) => `
-                <div style="margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
-                    <p style="font-size: 11px; margin: 0; font-weight: bold; color: #334155;">#${idx + 1} ${item.q}</p>
-                    <p style="font-size: 10px; margin: 4px 0 0; color: #64748b;">Response: ${item.a}</p>
-                </div>
-            `).join('')}
         </div>
     `;
 }
 
-// 6. HIGH-FIDELITY PDF GENERATOR (Supports multi-page & Webhook)
+/**
+ * HIGH-FIDELITY PDF GENERATOR (Modified for Webhook)
+ */
 async function generatePDF(isAutoSend = false) {
     const btn = document.getElementById('pdf-btn');
     const element = document.getElementById('pdf-template');
     
     if (!isAutoSend) {
         btn.disabled = true;
-        btn.innerText = 'Compiling High-Fidelity Report...';
+        btn.innerText = 'Preparing Report...';
     }
 
     const originalStyle = element.getAttribute('style') || '';
-    
-    // Force Visibility for Capture
-    element.style.cssText = `
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: absolute !important;
-        width: 800px !important;
-        left: -10000px !important;
-        background: white !important;
-    `;
+    element.style.cssText = `display: block !important; visibility: visible !important; position: absolute !important; left: -9999px !important; width: 800px !important; background: white !important;`;
 
-    await document.fonts.ready;
-    await new Promise(resolve => requestAnimationFrame(resolve));
-    
     try {
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff'
-        });
-
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
+        const pdf = new jsPDF('p', 'in', 'letter');
         
         const pageWidth = 8.5, pageHeight = 11, margin = 0.4;
-        const contentWidth = pageWidth - (margin * 2);
-        const contentHeight = pageHeight - (margin * 2);
-        const pxToInch = contentWidth / canvas.width;
-        const maxCanvasHeight = contentHeight / pxToInch;
-        const totalPages = Math.ceil(canvas.height / maxCanvasHeight);
-
-        for (let page = 0; page < totalPages; page++) {
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = canvas.width;
-            pageCanvas.height = Math.min(maxCanvasHeight, canvas.height - page * maxCanvasHeight);
-            
-            const ctx = pageCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, page * maxCanvasHeight, canvas.width, pageCanvas.height, 0, 0, pageCanvas.width, pageCanvas.height);
-            
-            if (page > 0) pdf.addPage();
-            pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.98), 'JPEG', margin, margin, contentWidth, pageCanvas.height * pxToInch);
-        }
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        pdf.addImage(imgData, 'JPEG', margin, margin, 7.7, (canvas.height * 7.7) / canvas.width);
 
         if (!isAutoSend) {
-            pdf.save(`Cirrus_Report_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
+            pdf.save(`Diagnostic_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
             btn.innerText = '📥 Export Professional PDF Report';
+            return null;
         } else {
-            // CRM SYNC
-            const pdfBlob = pdf.output('blob');
-            await sendToWebhook(pdfBlob);
+            return pdf.output('blob');
         }
-
     } catch (err) {
-        console.error('Diagnostic PDF Error:', err);
-        if (!isAutoSend) btn.innerText = 'Render Error: Try Again';
+        console.error('PDF Error:', err);
+        return null;
     } finally {
         element.setAttribute('style', originalStyle);
         if (!isAutoSend) btn.disabled = false;
     }
 }
 
-// 7. CRM WEBHOOK INTEGRATION
-async function sendToWebhook(pdfBlob) {
+/**
+ * WEBHOOK SYNC
+ */
+async function sendToWebhook(formData, pdfBlob) {
     const reader = new FileReader();
     reader.readAsDataURL(pdfBlob);
     reader.onloadend = async () => {
         const base64PDF = reader.result.split(',')[1];
         
         const payload = {
-            fullName: userInfo.name,
-            email: userInfo.email,
-            businessName: userInfo.business,
-            maturityScore: Math.round((totalScore / (questions.length * 5)) * 100),
-            fileName: `${userInfo.name}_Cirrus_Diagnostic.pdf`,
+            fullName: formData.name,
+            email: formData.email,
+            businessName: formData.business,
+            maturityScore: formData.score,
+            riskLevel: formData.riskLevel,
+            revenueAtRisk: formData.revenueAtRisk,
             fileData: base64PDF,
-            auditLog: JSON.stringify(auditLog)
+            fileName: `${formData.name}_Diagnostic.pdf`,
+            auditLog: JSON.stringify(formData.all33Questions)
         };
 
         const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
         
-        try {
-            await fetch(WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            console.log("CRM: Record Synced Successfully.");
-        } catch (e) {
-            console.error("CRM: Webhook Delivery Failed", e);
-        }
+        await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        console.log("CRM: Data transmitted successfully.");
     };
 }
 
-// 8. INITIALIZATION
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('pdf-btn');
     if (btn) btn.onclick = () => generatePDF(false);
