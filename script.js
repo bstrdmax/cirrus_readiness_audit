@@ -89,16 +89,18 @@ async function processResults() {
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = risk;
 
-    // Generate recommendations and root cause
+    // Generate recommendations, root cause, and risk statements
     const recommendations = getRecommendations();
-    const rootCause = getRootCause();
+    const categoryAverages = calculateCategoryAverages();
+    const rootCause = getRootCause(categoryAverages);
+    const riskStatements = generateRiskStatements(categoryAverages);
 
-    // Update HTML results with recommendations
+    // Update HTML results with recommendations and risk insight
     displayRecommendations(recommendations);
-    document.getElementById('diag-text').innerText = rootCause.summary;
+    document.getElementById('diag-text').innerHTML = rootCause.detailedSummary; // rich HTML
 
     // Build PDF template with all sections
-    setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause);
+    setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause, categoryAverages, riskStatements);
 
     // Allow time for rendering, then generate PDF and sync
     try {
@@ -114,12 +116,112 @@ async function processResults() {
                 revAtRisk: annualRisk,
                 logs: auditLog,
                 recommendations: recommendations,
-                rootCause: rootCause
+                rootCause: rootCause,
+                riskStatements: riskStatements,
+                categoryAverages: categoryAverages
             }, pdfBlob);
         }
     } catch (err) {
         console.error("Post-result processing failed:", err);
     }
+}
+
+/** * Calculate average score per category */
+function calculateCategoryAverages() {
+    const catData = {};
+    auditLog.forEach(item => {
+        if (!catData[item.category]) {
+            catData[item.category] = { total: 0, count: 0 };
+        }
+        catData[item.category].total += item.score;
+        catData[item.category].count += 1;
+    });
+    const averages = {};
+    for (const [cat, data] of Object.entries(catData)) {
+        averages[cat] = data.total / data.count;
+    }
+    return averages;
+}
+
+/** * Generate root cause with detailed explanation */
+function getRootCause(categoryAverages) {
+    let lowestCategory = null;
+    let lowestAvg = Infinity;
+    for (const [cat, avg] of Object.entries(categoryAverages)) {
+        if (avg < lowestAvg) {
+            lowestAvg = avg;
+            lowestCategory = cat;
+        }
+    }
+
+    // Create a rich summary
+    const riskLevel = lowestAvg < 3 ? "High Risk" : (lowestAvg < 4 ? "Medium Risk" : "Low Risk");
+    const summary = `Your lowest performing area is <strong>${lowestCategory}</strong> with an average score of ${lowestAvg.toFixed(1)}/5 (${riskLevel}).`;
+
+    // Detailed explanation based on category
+    let explanation = "";
+    switch (lowestCategory) {
+        case "Marketing":
+            explanation = "Manual marketing processes lead to delayed lead response, inconsistent messaging, and missed opportunities. AI-powered automation can nurture leads 24/7 and optimize campaigns in real-time.";
+            break;
+        case "Sales":
+            explanation = "Sales bottlenecks like manual proposals and follow-ups increase sales cycle length and reduce close rates. Automated sequences and CRM integration ensure no lead falls through the cracks.";
+            break;
+        case "Customer Service":
+            explanation = "Reactive customer service creates friction and churn. AI chatbots and automated ticketing systems provide instant support and free up your team for complex issues.";
+            break;
+        case "Operations":
+            explanation = "Repetitive administrative tasks drain productivity. Workflow automation (e.g., Make.com) can streamline operations, reduce errors, and save dozens of hours weekly.";
+            break;
+        case "Finance":
+            explanation = "Manual financial processes risk errors, late payments, and cash flow gaps. Automated invoicing, expense tracking, and collections improve accuracy and liquidity.";
+            break;
+        case "People":
+            explanation = "HR tasks like onboarding and time-off requests, when manual, create delays and poor employee experience. Automated provisioning and self-service portals boost efficiency.";
+            break;
+        case "Data & AI":
+            explanation = "Without automated data integration and AI insights, you're making decisions in the dark. Real-time dashboards and predictive analytics give you a competitive edge.";
+            break;
+        case "Compliance":
+            explanation = "Weak access controls and backup processes expose you to security breaches and data loss. Automated provisioning and backups are essential for compliance and peace of mind.";
+            break;
+        default:
+            explanation = "Addressing this area with targeted automation will yield significant efficiency gains and risk reduction.";
+    }
+
+    const detailedSummary = `${summary} ${explanation}`;
+    return { lowestCategory, lowestAvg, summary, detailedSummary, explanation };
+}
+
+/** * Generate risk statements for each category */
+function generateRiskStatements(categoryAverages) {
+    const statements = [];
+    for (const [category, avg] of Object.entries(categoryAverages)) {
+        let riskLevel = "Low";
+        let riskDescription = "";
+        if (avg < 3) {
+            riskLevel = "High";
+            riskDescription = `High risk of revenue leakage and inefficiency due to manual ${category.toLowerCase()} processes.`;
+        } else if (avg < 4) {
+            riskLevel = "Medium";
+            riskDescription = `Moderate risk; some automation exists but gaps remain in ${category.toLowerCase()}.`;
+        } else {
+            riskLevel = "Low";
+            riskDescription = `Low risk – your ${category.toLowerCase()} processes are well-automated.`;
+        }
+        // Add AI/automation specific note
+        let aiNote = "";
+        if (avg < 4) {
+            aiNote = " AI/automation could further reduce risk and improve performance.";
+        }
+        statements.push({
+            category,
+            avgScore: avg.toFixed(1),
+            riskLevel,
+            description: riskDescription + aiNote
+        });
+    }
+    return statements;
 }
 
 /** * Generate critical recommendations from auditLog (score <= 3 and has meaningful rec) */
@@ -128,31 +230,6 @@ function getRecommendations() {
         .filter(item => item.score <= 3 && item.rec && item.rec !== "Maintain current standard.")
         .sort((a, b) => a.score - b.score) // most critical first
         .slice(0, 10); // limit to top 10
-}
-
-/** * Calculate average score per category and identify weakest area */
-function getRootCause() {
-    const categoryScores = {};
-    auditLog.forEach(item => {
-        if (!categoryScores[item.category]) {
-            categoryScores[item.category] = { total: 0, count: 0 };
-        }
-        categoryScores[item.category].total += item.score;
-        categoryScores[item.category].count += 1;
-    });
-
-    let lowestCategory = null;
-    let lowestAvg = Infinity;
-    for (const [cat, data] of Object.entries(categoryScores)) {
-        const avg = data.total / data.count;
-        if (avg < lowestAvg) {
-            lowestAvg = avg;
-            lowestCategory = cat;
-        }
-    }
-
-    const summary = `Your lowest performing area is **${lowestCategory}** with an average score of ${lowestAvg.toFixed(1)}/5. Focus here first.`;
-    return { lowestCategory, lowestAvg, summary };
 }
 
 /** * Populate the HTML next-steps container */
@@ -171,8 +248,8 @@ function displayRecommendations(recommendations) {
     });
 }
 
-/** * Build the hidden PDF template with summary, root cause, next steps, and audit detail */
-function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause) {
+/** * Build the hidden PDF template with full analysis */
+function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause, categoryAverages, riskStatements) {
     const template = document.getElementById('pdf-template');
     template.innerHTML = '';
 
@@ -194,14 +271,39 @@ function setupPdfTemplate(maturity, risk, annualRisk, recommendations, rootCause
     `;
     template.appendChild(p1);
 
-    // Page 2: Root Cause & Next Steps
+    // Page 2: Root Cause & Risk Assessment
     const p2 = createPageDiv();
     p2.innerHTML = `
         <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px;">Root Cause Analysis</h2>
-        <p style="font-size:16px; margin:20px 0;">${rootCause.summary}</p>
-        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px; margin-top:30px;">Critical Action Items</h2>
+        <p style="font-size:16px; margin:20px 0;">${rootCause.detailedSummary}</p>
+
+        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px; margin-top:30px;">Risk Assessment by Category</h2>
+        <table style="width:100%; border-collapse:collapse; margin-top:15px;">
+            <thead>
+                <tr style="background:#f1f5f9;">
+                    <th style="padding:10px; text-align:left;">Category</th>
+                    <th style="padding:10px; text-align:center;">Avg Score</th>
+                    <th style="padding:10px; text-align:center;">Risk Level</th>
+                    <th style="padding:10px; text-align:left;">Risk Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${riskStatements.map(rs => `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:10px;"><strong>${rs.category}</strong></td>
+                        <td style="padding:10px; text-align:center;">${rs.avgScore}/5</td>
+                        <td style="padding:10px; text-align:center;">
+                            <span style="background:${rs.riskLevel === 'High' ? '#ef4444' : (rs.riskLevel === 'Medium' ? '#f59e0b' : '#10b981')}; color:white; padding:4px 8px; border-radius:12px; font-size:12px;">${rs.riskLevel}</span>
+                        </td>
+                        <td style="padding:10px;">${rs.description}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+
+        <h2 style="border-bottom: 2px solid #0f172a; padding-bottom:10px; margin-top:30px;">Recommended Controls</h2>
         ${recommendations.length ? recommendations.map(rec => `
-            <div style="margin-bottom:15px; padding:10px; background:#f8fafc; border-left:4px solid #ef4444;">
+            <div style="margin-bottom:12px; padding:10px; background:#f8fafc; border-left:4px solid #2563eb;">
                 <strong>${rec.category}</strong>: ${rec.rec}
             </div>
         `).join('') : '<p>No critical actions – your processes are strong!</p>'}
@@ -303,6 +405,8 @@ async function sendToWebhook(data, pdfBlob) {
     formData.append('auditLog', JSON.stringify(data.logs));
     formData.append('recommendations', JSON.stringify(data.recommendations));
     formData.append('rootCause', JSON.stringify(data.rootCause));
+    formData.append('riskStatements', JSON.stringify(data.riskStatements));
+    formData.append('categoryAverages', JSON.stringify(data.categoryAverages));
     formData.append('file', pdfBlob, `Report_${data.name}.pdf`);
 
     try {
