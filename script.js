@@ -1,6 +1,6 @@
 /**
  * CIRRUS AUTOMATIONS - STRATEGIC DIAGNOSTIC ENGINE
- * Version: 11.0 (Final Stable - DOM-First Multi-page PDF + Webhook)
+ * Version: 11.1 (Stable - Enhanced PDF & Webhook Reliability)
  */
 
 const questions = [
@@ -89,22 +89,29 @@ async function processResults() {
     document.getElementById('revenue-risk').innerText = `$${annualRisk.toLocaleString()}`;
     document.getElementById('risk-rating').innerText = risk;
 
-    // STEP 1: Construct the template in the DOM
+    // Build PDF template in DOM
     setupPdfTemplate(maturity, risk, annualRisk);
 
-    // STEP 2: Wait for paint then capture PDF & Sync Webhook
-    setTimeout(async () => {
-        try {
-            const pdfBlob = await generatePDF(true); // Silent generation for sync
-            if (pdfBlob) {
-                const formData = {
-                    name: userInfo.name, email: userInfo.email, business: userInfo.business,
-                    score: maturity, risk: risk, revAtRisk: annualRisk, logs: auditLog
-                };
-                await sendToWebhook(formData, pdfBlob);
-            }
-        } catch (err) { console.error("Sync Logic Failed:", err); }
-    }, 2500); 
+    // Wait for layout and fonts, then generate PDF and sync
+    try {
+        // Allow time for rendering
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const pdfBlob = await generatePDF(true); // silent generation
+        if (pdfBlob) {
+            await sendToWebhook({
+                name: userInfo.name,
+                email: userInfo.email,
+                business: userInfo.business,
+                score: maturity,
+                risk: risk,
+                revAtRisk: annualRisk,
+                logs: auditLog
+            }, pdfBlob);
+        }
+    } catch (err) {
+        console.error("Post-result processing failed:", err);
+        // Optionally show user a message, but don't break UI
+    }
 }
 
 function setupPdfTemplate(maturity, risk, annualRisk) {
@@ -143,63 +150,114 @@ function setupPdfTemplate(maturity, risk, annualRisk) {
     });
 }
 
-/** * HIGH-FIDELITY PDF RENDERER */
+/** * HIGH-FIDELITY PDF RENDERER (with timeout & error handling) */
 async function generatePDF(isAutoSend = false) {
-    const btn = document.getElementById('pdf-btn'), template = document.getElementById('pdf-template'), pages = template.querySelectorAll('.pdf-page-chunk');
-    if (!pages.length) return null;
-    if (!isAutoSend) { btn.disabled = true; btn.innerText = 'Compiling...'; }
+    const btn = document.getElementById('pdf-btn');
+    const template = document.getElementById('pdf-template');
+    const pages = template.querySelectorAll('.pdf-page-chunk');
+    if (!pages.length) {
+        console.warn("No PDF pages to render");
+        return null;
+    }
 
-    const originalStyle = template.getAttribute('style') || '';
-    template.style.cssText = `display:block !important; visibility:visible !important; position:absolute !important; left:-9999px !important; width:800px !important; background:white !important;`;
+    if (!isAutoSend) {
+        btn.disabled = true;
+        btn.innerText = 'Compiling...';
+    }
+
+    // Make template visible and force reflow
+    const originalDisplay = template.style.display;
+    template.style.cssText = `
+        display:block !important;
+        visibility:visible !important;
+        position:absolute !important;
+        left:-9999px !important;
+        width:800px !important;
+        background:white !important;
+    `;
+    // Force layout recalc
+    template.offsetHeight;
 
     await document.fonts.ready;
+    // Short delay to ensure fonts apply
     await new Promise(resolve => requestAnimationFrame(resolve));
 
     try {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
-        
+
         for (let i = 0; i < pages.length; i++) {
-            const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+            // Add a timeout to html2canvas to prevent hanging
+            const canvas = await Promise.race([
+                html2canvas(pages[i], {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    allowTaint: false,
+                }),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('html2canvas timeout')), 15000)
+                )
+            ]);
+
             if (i > 0) pdf.addPage();
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0.4, 0.4, 7.7, (pages[i].offsetHeight / 800) * 7.7);
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            // Calculate height proportionally (page width 7.7in)
+            const pageHeightInches = (pages[i].offsetHeight / 800) * 7.7;
+            pdf.addImage(imgData, 'JPEG', 0.4, 0.4, 7.7, pageHeightInches);
         }
 
         if (!isAutoSend) {
             pdf.save(`Cirrus_Report_${userInfo.name.replace(/\s+/g, '_')}.pdf`);
             btn.innerText = '📥 Export Professional PDF Report';
+            btn.disabled = false;
             return null;
         } else {
             return pdf.output('blob');
         }
     } catch (err) {
         console.error("PDF Render Error:", err);
+        if (!isAutoSend) {
+            alert('PDF generation failed. Please check console or try again.');
+            btn.innerText = '📥 Export Professional PDF Report';
+            btn.disabled = false;
+        }
         return null;
     } finally {
-        template.setAttribute('style', originalStyle);
-        if (!isAutoSend) btn.disabled = false;
+        // Restore template visibility
+        template.style.display = originalDisplay;
     }
 }
 
-/** * CRM WEBHOOK SYNC */
+/** * CRM WEBHOOK SYNC (using FormData for reliable file upload) */
 async function sendToWebhook(data, pdfBlob) {
-    const reader = new FileReader();
-    reader.readAsDataURL(pdfBlob);
-    reader.onloadend = async () => {
-        const payload = {
-            fullName: data.name, email: data.email, businessName: data.business,
-            maturityScore: data.score, riskLevel: data.risk, revenueAtRisk: data.revAtRisk,
-            fileData: reader.result.split(',')[1], fileName: `Report_${data.name}.pdf`,
-            auditLog: JSON.stringify(data.logs)
-        };
+    const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
 
-        const WEBHOOK_URL = "https://hook.us2.make.com/drsloaxbo9riybo89h865sygz29blebg";
-        await fetch(WEBHOOK_URL, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+    const formData = new FormData();
+    formData.append('fullName', data.name);
+    formData.append('email', data.email);
+    formData.append('businessName', data.business);
+    formData.append('maturityScore', data.score);
+    formData.append('riskLevel', data.risk);
+    formData.append('revenueAtRisk', data.revAtRisk);
+    formData.append('auditLog', JSON.stringify(data.logs));
+    formData.append('file', pdfBlob, `Report_${data.name}.pdf`);
+
+    try {
+        const response = await fetch(WEBHOOK_URL, {
+            method: 'POST',
+            body: formData
+            // Do NOT set Content-Type header; browser sets it with boundary
         });
+        if (!response.ok) {
+            throw new Error(`Webhook responded with ${response.status}`);
+        }
         console.log("CRM: Sync Complete.");
-    };
+    } catch (err) {
+        console.error("Webhook delivery failed:", err);
+        // Non-critical; don't disrupt user
+    }
 }
 
 /** * HELPERS */
