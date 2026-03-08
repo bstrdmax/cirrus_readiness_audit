@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
 
@@ -16,30 +15,54 @@
             <div class="logo-wrapper">
                 <div class="logo-placeholder">CIRRUS</div>
             </div>
-            <h1>Automation Readiness Tool</h1>
-            <p>Strategic diagnostic for business infrastructure maturity.</p>
+            <h1 id="main-title">Automation Readiness Tool</h1>
+            <p id="main-subtitle">Choose your assessment path below.</p>
         </header>
 
         <main id="app-container">
-            <!-- STEP 1: Onboarding -->
-            <div id="step0" class="view active">
+            <!-- STEP 0: Path Selection -->
+            <div id="step-path" class="view active">
                 <div class="quiz-card">
                     <div class="content">
-                        <h2 class="section-title">Analyze Your Business</h2>
-                        <p class="section-desc">Enter your details to begin the professional diagnostic assessment.</p>
+                        <h2 class="section-title">Select Assessment Path</h2>
+                        <p class="section-desc">Tailor the diagnostic to your specific goals.</p>
+                        <div class="path-grid">
+                            <div class="path-option" onclick="selectPath('business')">
+                                <h3>Business</h3>
+                                <p>Detailed diagnostic for professional infrastructure and scaling.</p>
+                            </div>
+                            <div class="path-option" onclick="selectPath('individual')">
+                                <h3>Individual</h3>
+                                <p>Personal productivity, AI adoption, and daily flow efficiency.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 1: Onboarding -->
+            <div id="step0" class="view">
+                <div class="quiz-card">
+                    <div class="content">
+                        <h2 class="section-title" id="onboarding-title">Analyze Your Business</h2>
+                        <p class="section-desc" id="onboarding-desc">Enter your details to begin the professional diagnostic assessment.</p>
+                        
                         <div class="form-group">
                             <label for="name">Full Name</label>
                             <input type="text" id="name" placeholder="e.g. John Doe">
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group" id="biz-field">
                             <label for="business-name">Business Name</label>
                             <input type="text" id="business-name" placeholder="e.g. Cirrus Automations">
                         </div>
+                        
                         <div class="form-group">
                             <label for="email">Work Email</label>
                             <input type="email" id="email" placeholder="e.g. john@company.com">
                         </div>
-                        <button id="start-btn" class="btn btn-primary full-width" onclick="startQuiz()">Begin Assessment</button>
+                        
+                        <button class="btn btn-primary full-width" onclick="startQuiz()">Begin Assessment</button>
                     </div>
                 </div>
             </div>
@@ -51,11 +74,9 @@
                         <div id="progress" class="progress-fill"></div>
                     </div>
                     <div class="content">
-                        <div id="question-container">
-                            <div id="q-counter" style="font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 0.05em;">QUESTION 1 OF 33</div>
-                            <h2 id="q-text" class="question-header"></h2>
-                            <div id="options" class="options-container"></div>
-                        </div>
+                        <div id="q-counter" style="font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 0.05em;">QUESTION 1</div>
+                        <h2 id="q-text" class="question-header"></h2>
+                        <div id="options" class="options-container"></div>
                     </div>
                 </div>
             </div>
@@ -63,19 +84,19 @@
             <!-- STEP 3: Results -->
             <div id="step2" class="view">
                 <div class="results-top">
-                    <div id="traffic-light" class="status-circle"></div>
-                    <span id="status-badge" class="badge">ANALYSIS COMPLETE</span>
-                    <h2 id="result-title" style="margin-top: 10px; font-weight: 800;"></h2>
+                    <div id="traffic-light" class="status-circle" style="width: 85px; height: 85px; border-radius: 50%; margin: 0 auto 20px; border: 6px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"></div>
+                    <span class="badge">ANALYSIS COMPLETE</span>
+                    <h2 id="result-title" style="margin-top: 10px; font-weight: 800;">Your Readiness Report</h2>
                 </div>
 
                 <div class="impact-metrics">
                     <div class="metric-card">
-                        <span class="metric-label">Monthly Hours Lost</span>
-                        <div id="hours-lost" class="metric-value">0 hrs</div>
+                        <span class="metric-label" id="metric1-label">Readiness</span>
+                        <div id="metric1-val" class="metric-value">0%</div>
                     </div>
                     <div class="metric-card">
-                        <span class="metric-label">Revenue at Risk</span>
-                        <div id="revenue-risk" class="metric-value">$0</div>
+                        <span class="metric-label" id="metric2-label">Revenue Risk</span>
+                        <div id="metric2-val" class="metric-value">$0</div>
                     </div>
                     <div class="metric-card">
                         <span class="metric-label">Risk Profile</span>
@@ -99,10 +120,9 @@
         </main>
     </div>
 
-    <!-- The PDF template is now a hidden container that will be populated with "Page" divs via JS -->
     <div id="pdf-template" style="display: none; position: absolute; left: -9999px;"></div>
 
     <script src="script.js"></script>
-<script type="module" src="/index.tsx"></script>
 </body>
+</html>
 </html>
